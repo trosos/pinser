@@ -1,0 +1,5 @@
+# Claw Code local artifacts
+.claw.json
+.claw/sessions/
+.claw/settings.local.json
+.clawhip/
