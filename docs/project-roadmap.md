@@ -105,6 +105,23 @@ Phase 1 is complete when all of the following are true:
 - event types are defined clearly enough to support persistence later without redesigning everything
 - tests demonstrate deterministic behavior for a minimal no-tool turn
 
+### Recommended stopping point
+
+A sensible Phase 1 stopping point is reached when the runtime has:
+
+- typed session state
+- typed turn state
+- a headless runtime facade
+- async streaming turn execution
+- cancellation tests
+- prompt assembly abstraction
+- a fake model backend
+- an event model with explicit separation between:
+  - conversation content events
+  - lifecycle/progress events
+
+This stopping point is intentionally short of persistence and real tool execution. It gives Phase 3 transcript work and Phase 2 tool work a stable runtime boundary without prematurely committing to storage or tool semantics.
+
 ### Out of scope
 
 - real shell/file tools
