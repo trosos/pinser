@@ -101,3 +101,24 @@ If you want to help:
 - prefer public equivalents over internal dependencies where practical
 - clearly label any compatibility work that touches internal behavior
 - do not represent internal Anthropic APIs as stable or officially supported
+
+## Phase 0 local workflow
+
+The repository now uses a minimal Python bootstrap aligned with `docs/implementation-stack-decision.md`.
+
+Recommended local commands:
+
+- `uv sync --extra dev`
+- `uv run ruff check .`
+- `uv run mypy .`
+- `uv run pytest`
+- `uv run pinser --workspace .`
+
+Current Phase 0 implementation includes:
+
+- `pyproject.toml` with package metadata and tool configuration
+- `src/pinser/` package layout
+- a Typer CLI entrypoint
+- a minimal pydantic-based configuration loader
+- baseline tests for configuration loading and CLI startup
+

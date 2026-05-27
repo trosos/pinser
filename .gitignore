@@ -3,3 +3,18 @@
 .claw/sessions/
 .claw/settings.local.json
 .clawhip/
+
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+dist/
+build/
+.pinser/
+.clawd-todos.json
+.sandbox-home/
+.sandbox-tmp/
+

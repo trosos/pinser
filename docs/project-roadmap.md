@@ -52,6 +52,8 @@ Create a minimal but disciplined Python project foundation that allows implement
 - a minimal CLI entrypoint that starts and exits successfully
 - contributor-facing notes for local setup if needed
 
+Current status: Phase 0 bootstrap has started. The repository now contains a minimal Python package layout, a Typer CLI entrypoint, and initial configuration/test/tooling setup.
+
 ### Completeness criteria
 
 Phase 0 is complete when all of the following are true:

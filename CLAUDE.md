@@ -3,8 +3,22 @@
 This file provides guidance to Claw Code (clawcode.dev) when working with code in this repository.
 
 ## Detected stack
-- No specific language markers were detected yet; document the primary language and verification commands once the project structure settles.
-- Frameworks: none detected from the supported starter markers.
+- Primary language: Python
+- Runtime baseline: target Python 3.13, minimum supported Python 3.12
+- CLI framework: Typer
+- Validation/config: pydantic v2
+- Quality tools: pytest, pytest-asyncio, ruff, mypy
+- Dependency workflow: uv
+
+## Verification commands
+- `uv run ruff check .`
+- `uv run mypy .`
+- `uv run pytest`
+- `uv run pinser --workspace .`
+
+## Local tool notes
+- In your environment, `uv` may be available at `~/.local/bin/uv`.
+- If `uv` is not on `PATH`, prefer invoking it explicitly from `~/.local/bin/uv` before changing repo files or workflows.
 
 ## Working agreement
 - Prefer small, reviewable changes and keep generated bootstrap files aligned with actual repo workflows.

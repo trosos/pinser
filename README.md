@@ -10,6 +10,8 @@ The project aims to provide a user-controlled, inspectable alternative for termi
 
 Pinser is in an early stage.
 
+A Phase 0 Python bootstrap is now in place, including a minimal CLI, initial configuration loading, and baseline test/lint/type-check setup.
+
 ## What Pinser is trying to do
 
 - provide a free-software alternative for Claude Code-style workflows
