@@ -12,41 +12,23 @@ Pinser is in an early stage.
 
 - provide a free-software alternative to Claude Code
 - reproduce useful Claude Code workflows
-- support Anthropic's public APIs
-- make internal API support, if present, explicitly opt-in
-- provide local or public-API-based workarounds when internal-only features are unavailable
+- support documented and user-accessible APIs
+- make any support for undocumented APIs, if present, explicitly opt-in
+- provide local or public-API-based workarounds when undocumented features are unavailable
 
 ## API support
 
-Pinser is expected to use Anthropic APIs.
+Pinser is intended to work primarily with supported public APIs and local implementations where possible.
 
-There are two broad categories:
+Some compatibility features may depend on undocumented APIs. If such support exists, it should be treated as experimental, explicitly enabled by the user, and not considered part of the default Pinser experience.
 
-- **Public Anthropic APIs**: the normal supported integration surface
-- **Internal Anthropic APIs**: undocumented APIs that are not part of the normal supported integration surface
+## If undocumented APIs are not used
 
-The intended default is to rely on public APIs and local implementations where possible.
-
-## Internal API disclaimer
-
-Some Claude Code behavior appears to rely on internal Anthropic APIs.
-
-Pinser may support some of those APIs as an **opt-in** compatibility feature, but they come with important caveats:
-
-- they may be unstable, incomplete, rate-limited, or removed without notice
-- they may require credentials or account state that are not publicly documented
-- their use may violate Anthropic's terms of service
-- they are not required for the default Pinser experience
-
-If internal API support exists, it should be disabled by default and clearly labeled.
-
-## When internal APIs are not used
-
-When users do **not** opt into internal APIs, Pinser should prefer public APIs and local substitutes.
+When users do **not** opt into undocumented APIs, Pinser should prefer public APIs and local substitutes.
 
 Examples include:
 
-- calling Anthropic's public APIs directly
+- calling supported public APIs directly
 - supporting other compatible model providers
 - using local subprocesses for worker execution
 - storing session and task state locally
@@ -58,16 +40,16 @@ Examples include:
 - **Free software first**
 - **Public APIs first**
 - **Local-first where possible**
-- **No silent fallback to internal APIs**
+- **No silent fallback to undocumented APIs**
 - **Clear disclosure of compatibility risks**
 - **Readable and auditable implementation**
 
 ## Contributing / developer docs
 
-If you want implementation details, architecture notes, or clean-room rewrite guidance, see [HACKING.md](./HACKING.md).
+If you want implementation details, architecture notes, or rewrite guidance, see [HACKING.md](./HACKING.md).
 
 ## Disclaimer
 
 Pinser is an independent project. It is not affiliated with, endorsed by, or supported by Anthropic.
 
-Any optional support for undocumented internal Anthropic APIs, if added, is experimental and provided strictly as a user-enabled compatibility path, not as the recommended default. Such use may be unstable and may violate Anthropic's terms of service.
+Any optional support for undocumented APIs, if added, is experimental and provided strictly as a user-enabled compatibility path, not as the recommended default. Such use may be unstable, may stop working without notice, and may be subject to provider terms and restrictions.
