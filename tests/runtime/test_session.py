@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+from pinser.runtime.conversation.messages import AssistantMessage, UserMessage
 from pinser.runtime.engine.session import Session, SessionState
 from pinser.runtime.events.models import EventType
 from pinser.runtime.model.fake import FakeModel
@@ -18,7 +19,10 @@ async def test_session_streams_deterministic_events_in_order() -> None:
         EventType.TURN_COMPLETED,
     ]
     assert session.state.turn_count == 1
-    assert session.state.transcript == ["user: hello", "assistant: Echo: hello"]
+    assert session.state.transcript == [
+        UserMessage(content="hello"),
+        AssistantMessage(content="Echo: hello"),
+    ]
 
 
 async def test_session_cancellation_before_model_output_keeps_state_unchanged() -> None:

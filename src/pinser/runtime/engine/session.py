@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 from pinser.runtime.context.prompt import build_prompt_context
+from pinser.runtime.conversation.messages import AssistantMessage, ConversationItem, UserMessage
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
@@ -23,7 +24,7 @@ class SessionState:
 
     session_id: str
     turn_count: int = 0
-    transcript: list[str] = field(default_factory=list)
+    transcript: list[ConversationItem] = field(default_factory=list)
 
 
 class Session:
@@ -79,7 +80,12 @@ class Session:
             return
 
         self._state.turn_count = next_turn_id
-        self._state.transcript.extend((f"user: {user_message}", f"assistant: {assistant_message}"))
+        self._state.transcript.extend(
+            (
+                UserMessage(content=user_message),
+                AssistantMessage(content=assistant_message),
+            )
+        )
         yield TurnCompletedEvent(
             session_id=self._state.session_id,
             turn_id=next_turn_id,

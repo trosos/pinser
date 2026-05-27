@@ -1,4 +1,5 @@
 from pinser.runtime.context.prompt import PromptRole, build_prompt_context
+from pinser.runtime.conversation.messages import AssistantMessage, UserMessage
 from pinser.runtime.engine.session import SessionState
 
 
@@ -6,7 +7,7 @@ def test_build_prompt_context_includes_system_history_and_new_user_message() -> 
     session_state = SessionState(
         session_id="session-1",
         turn_count=1,
-        transcript=["user: hello", "assistant: Echo: hello"],
+        transcript=[UserMessage(content="hello"), AssistantMessage(content="Echo: hello")],
     )
 
     prompt_context = build_prompt_context(session_state, "what next?")

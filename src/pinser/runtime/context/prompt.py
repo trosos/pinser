@@ -6,13 +6,15 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+from pinser.runtime.conversation.messages import AssistantMessage, ConversationItem, UserMessage
+
 
 class SessionView(Protocol):
     """Readonly session shape needed by prompt assembly."""
 
     session_id: str
     turn_count: int
-    transcript: list[str]
+    transcript: list[ConversationItem]
 
 
 class PromptRole(StrEnum):
@@ -46,18 +48,22 @@ SYSTEM_PROMPT = (
 )
 
 
+def _prompt_message_for_item(item: ConversationItem) -> PromptMessage:
+    if isinstance(item, UserMessage):
+        return PromptMessage(role=PromptRole.USER, content=item.content)
+    if isinstance(item, AssistantMessage):
+        return PromptMessage(role=PromptRole.ASSISTANT, content=item.content)
+    msg = f"Unsupported conversation item: {type(item)!r}"
+    raise TypeError(msg)
+
+
 def build_prompt_context(session_state: SessionView, user_message: str) -> PromptContext:
     """Build the minimal structured prompt context for a turn."""
 
     messages: list[PromptMessage] = [PromptMessage(role=PromptRole.SYSTEM, content=SYSTEM_PROMPT)]
 
     for transcript_entry in session_state.transcript:
-        role_name, _, content = transcript_entry.partition(": ")
-        if role_name == PromptRole.USER.value:
-            role = PromptRole.USER
-        else:
-            role = PromptRole.ASSISTANT
-        messages.append(PromptMessage(role=role, content=content))
+        messages.append(_prompt_message_for_item(transcript_entry))
 
     messages.append(PromptMessage(role=PromptRole.USER, content=user_message))
 
