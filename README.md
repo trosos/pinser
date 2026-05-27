@@ -10,7 +10,7 @@ The project aims to provide a user-controlled, inspectable alternative for termi
 
 Pinser is in an early stage.
 
-A Phase 0 Python bootstrap is now in place, including a minimal CLI, initial configuration loading, and baseline test/lint/type-check setup.
+Phase 1 is now in place: the project has a typed runtime skeleton with session and turn state, prompt assembly, a fake model backend, async event streaming, cancellation handling, and a minimal CLI command that streams one turn's runtime events.
 
 ## What Pinser is trying to do
 
@@ -19,6 +19,27 @@ A Phase 0 Python bootstrap is now in place, including a minimal CLI, initial con
 - support documented and user-accessible APIs
 - make any support for undocumented APIs, if present, explicitly opt-in
 - provide local or public-API-based workarounds when undocumented features are unavailable
+
+## Current implementation snapshot
+
+Today the repository includes:
+
+- a Python project bootstrap with `uv`, `pytest`, `ruff`, and `mypy`
+- a Typer-based CLI
+- configuration loading for workspace-local state
+- a minimal runtime kernel with:
+  - typed `SessionState` and `TurnState`
+  - structured prompt assembly
+  - typed runtime events for user, assistant, progress, and lifecycle states
+  - a fake model backend for deterministic tests
+  - a headless runtime facade and a one-turn CLI command
+
+Still intentionally out of scope at this stage:
+
+- real tool execution
+- transcript persistence and resume
+- advanced retry/fallback behavior
+- remote/API-backed operation
 
 ## API support
 
@@ -62,12 +83,36 @@ If `uv` is not on your `PATH`, you may need to invoke it explicitly, for example
 ~/.local/bin/uv run pinser --workspace .
 ```
 
-To run the Phase 0 verification checks:
+## Useful commands
+
+Run the full verification suite:
 
 ```bash
 uv run ruff check .
 uv run mypy .
 uv run pytest
+```
+
+Run the minimal CLI bootstrap:
+
+```bash
+uv run pinser --workspace .
+```
+
+Run one minimal runtime turn:
+
+```bash
+uv run pinser run-turn hello --workspace .
+```
+
+Example output:
+
+```text
+turn-started turn_id=1 user=hello
+user: hello
+progress: generating
+assistant: Echo: hello
+turn-completed turn_id=1
 ```
 
 ## Contributing / developer docs

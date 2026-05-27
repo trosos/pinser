@@ -38,6 +38,7 @@ Start with:
 - [`docs/architecture/INDEX.md`](./docs/architecture/INDEX.md)
 - [`docs/architecture/hld.md`](./docs/architecture/hld.md)
 - [`docs/architecture/feature-prioritization.md`](./docs/architecture/feature-prioritization.md)
+- [`docs/project-roadmap.md`](./docs/project-roadmap.md)
 
 ## API strategy
 
@@ -102,9 +103,9 @@ If you want to help:
 - clearly label any compatibility work that touches internal behavior
 - do not represent internal Anthropic APIs as stable or officially supported
 
-## Phase 0 local workflow
+## Current local workflow
 
-The repository now uses a minimal Python bootstrap aligned with `docs/implementation-stack-decision.md`.
+The repository now includes the Phase 1 runtime skeleton on top of the initial Python bootstrap.
 
 Recommended local commands:
 
@@ -113,12 +114,21 @@ Recommended local commands:
 - `uv run mypy .`
 - `uv run pytest`
 - `uv run pinser --workspace .`
+- `uv run pinser run-turn hello --workspace .`
 
-Current Phase 0 implementation includes:
+Current implementation includes:
 
 - `pyproject.toml` with package metadata and tool configuration
 - `src/pinser/` package layout
 - a Typer CLI entrypoint
-- a minimal pydantic-based configuration loader
-- baseline tests for configuration loading and CLI startup
+- a pydantic-based configuration loader
+- a typed runtime kernel with session state, turn state, and structured prompt assembly
+- typed runtime event streaming for user, progress, assistant, and lifecycle events
+- a fake model backend and runtime tests for deterministic no-tool turns
 
+Still intentionally not implemented:
+
+- real tools and permission engine
+- transcript persistence and resume
+- advanced retry/fallback behavior
+- remote runtime surfaces
