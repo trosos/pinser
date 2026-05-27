@@ -10,6 +10,7 @@ class EventType(StrEnum):
     """Kinds of events the runtime can emit during a turn."""
 
     TURN_STARTED = "turn_started"
+    USER_MESSAGE = "user_message"
     ASSISTANT_MESSAGE = "assistant_message"
     TURN_COMPLETED = "turn_completed"
     TURN_CANCELLED = "turn_cancelled"
@@ -23,6 +24,16 @@ class TurnStartedEvent:
     turn_id: int
     user_message: str
     event_type: EventType = EventType.TURN_STARTED
+
+
+@dataclass(frozen=True, slots=True)
+class UserMessageEvent:
+    """Represents user input as conversation content for the current turn."""
+
+    session_id: str
+    turn_id: int
+    message: str
+    event_type: EventType = EventType.USER_MESSAGE
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,4 +65,10 @@ class TurnCancelledEvent:
     event_type: EventType = EventType.TURN_CANCELLED
 
 
-type Event = TurnStartedEvent | AssistantMessageEvent | TurnCompletedEvent | TurnCancelledEvent
+type Event = (
+    TurnStartedEvent
+    | UserMessageEvent
+    | AssistantMessageEvent
+    | TurnCompletedEvent
+    | TurnCancelledEvent
+)

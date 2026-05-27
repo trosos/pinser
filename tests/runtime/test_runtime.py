@@ -12,6 +12,7 @@ async def test_runtime_collects_turn_events_and_updates_session_state() -> None:
 
     assert [event.event_type for event in events] == [
         EventType.TURN_STARTED,
+        EventType.USER_MESSAGE,
         EventType.ASSISTANT_MESSAGE,
         EventType.TURN_COMPLETED,
     ]

@@ -16,6 +16,7 @@ from pinser.runtime.events.models import (
     TurnCancelledEvent,
     TurnCompletedEvent,
     TurnStartedEvent,
+    UserMessageEvent,
 )
 
 DEFAULT_WORKSPACE = Path.cwd()
@@ -77,6 +78,8 @@ def run_turn_command(
 def _render_event(event: Event) -> str:
     if isinstance(event, TurnStartedEvent):
         return f"turn-started turn_id={event.turn_id} user={event.user_message}"
+    if isinstance(event, UserMessageEvent):
+        return f"user: {event.message}"
     if isinstance(event, AssistantMessageEvent):
         return f"assistant: {event.message}"
     if isinstance(event, TurnCompletedEvent):

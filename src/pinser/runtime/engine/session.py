@@ -14,6 +14,7 @@ from pinser.runtime.events.models import (
     TurnCancelledEvent,
     TurnCompletedEvent,
     TurnStartedEvent,
+    UserMessageEvent,
 )
 from pinser.runtime.model.protocol import ModelBackend
 
@@ -67,12 +68,16 @@ class Session:
         """Execute one turn and stream ordered runtime events."""
 
         turn_state = self.prepare_turn(user_message)
-        started_event = TurnStartedEvent(
+        yield TurnStartedEvent(
             session_id=self._state.session_id,
             turn_id=turn_state.turn_id,
             user_message=turn_state.user_message,
         )
-        yield started_event
+        yield UserMessageEvent(
+            session_id=self._state.session_id,
+            turn_id=turn_state.turn_id,
+            message=turn_state.user_message,
+        )
 
         if cancellation_event is not None and cancellation_event.is_set():
             yield TurnCancelledEvent(
@@ -82,12 +87,11 @@ class Session:
             return
 
         assistant_message = await self._model.generate(turn_state.prompt_context)
-        message_event = AssistantMessageEvent(
+        yield AssistantMessageEvent(
             session_id=self._state.session_id,
             turn_id=turn_state.turn_id,
             message=assistant_message,
         )
-        yield message_event
 
         if cancellation_event is not None and cancellation_event.is_set():
             yield TurnCancelledEvent(

@@ -39,6 +39,7 @@ async def test_session_streams_deterministic_events_in_order() -> None:
 
     assert [event.event_type for event in events] == [
         EventType.TURN_STARTED,
+        EventType.USER_MESSAGE,
         EventType.ASSISTANT_MESSAGE,
         EventType.TURN_COMPLETED,
     ]
@@ -64,6 +65,7 @@ async def test_session_cancellation_before_model_output_keeps_state_unchanged() 
 
     assert [event.event_type for event in events] == [
         EventType.TURN_STARTED,
+        EventType.USER_MESSAGE,
         EventType.TURN_CANCELLED,
     ]
     assert session.state.turn_count == 0
