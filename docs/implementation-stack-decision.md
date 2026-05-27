@@ -4,6 +4,30 @@ This document records the recommended implementation stack for the first Pinser 
 
 It is intended as a planning aid for developers and architects, separate from the current architecture notes in `docs/architecture/`.
 
+## Normative TL;DR
+
+Unless there is an explicit, documented exception, the first Pinser implementation should use:
+
+- **Python 3.13** as the target runtime, with **Python 3.12** as the lowest acceptable fallback
+- **strong static typing**, enforced in CI
+- an **async-first core** built on `asyncio`
+- a **framework-light core runtime**, not a heavyweight application framework
+- **`Typer`** for CLI structure
+- **`pydantic` v2** for configuration and external boundary validation
+- **`httpx`** for outbound HTTP
+- **local files plus SQLite** for initial persistence
+- **standard-library subprocess primitives** for command execution
+- **`pytest` + `pytest-asyncio` + `ruff` + one type checker** as required quality tools
+- **`uv`** for development workflow and dependency management
+
+Unless runtime needs prove otherwise, developers should also follow these constraints:
+
+- keep the core implementation mostly standard-library driven
+- keep persistence concerns separated rather than building one generic store
+- defer rich TUI work until the runtime kernel is stable
+- defer web-framework adoption until remote/API surfaces are actually implemented
+- avoid a heavy ORM in the first implementation
+
 ## Decision summary
 
 For the first implementation, Pinser should use:
