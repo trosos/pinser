@@ -4,10 +4,34 @@ from typer.testing import CliRunner
 
 from pinser.app.cli.main import app
 
+runner = CliRunner()
+
+
+def test_root_help_uses_plain_consistent_output() -> None:
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "Usage: " in result.stdout
+    assert "Pinser command-line interface." in result.stdout
+    assert "Options:" in result.stdout
+    assert "Commands:" in result.stdout
+    assert "╭" not in result.stdout
+    assert "│" not in result.stdout
+
+
+def test_root_command_missing_subcommand_uses_plain_error_output() -> None:
+    result = runner.invoke(app, [])
+
+    assert result.exit_code != 0
+    combined_output = result.stdout + result.stderr
+    assert "Usage: " in combined_output
+    assert "Try 'pinser --help' for help." in combined_output
+    assert "Error: Missing command." in combined_output
+    assert "╭" not in combined_output
+    assert "│" not in combined_output
+
 
 def test_cli_runs_successfully(tmp_path: Path) -> None:
-    runner = CliRunner()
-
     result = runner.invoke(app, ["main", "--workspace", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -17,8 +41,6 @@ def test_cli_runs_successfully(tmp_path: Path) -> None:
 
 
 def test_run_turn_command_streams_runtime_events(tmp_path: Path) -> None:
-    runner = CliRunner()
-
     result = runner.invoke(app, ["run-turn", "hello", "--workspace", str(tmp_path)])
 
     assert result.exit_code == 0

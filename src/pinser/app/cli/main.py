@@ -23,9 +23,12 @@ from pinser.runtime.events.models import (
 DEFAULT_WORKSPACE = Path.cwd()
 
 app = typer.Typer(
+    name="pinser",
     add_completion=False,
     help="Pinser command-line interface.",
     no_args_is_help=False,
+    rich_markup_mode=None,
+    pretty_exceptions_enable=False,
 )
 
 
