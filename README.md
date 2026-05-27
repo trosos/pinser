@@ -1,6 +1,8 @@
 # Pinser
 
-Pinser is a free-software alternative for Claude Code-style workflows.
+Pinser is a [vibe trash](./VIBE).
+
+If/when ready, it will be a free-software alternative for Claude Code-style workflows.
 
 The project aims to provide a user-controlled, inspectable alternative for terminal coding workflows while remaining independently developed.
 
