@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
+from pinser.runtime.context.prompt import build_prompt_context
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
@@ -61,7 +62,8 @@ class Session:
             )
             return
 
-        assistant_message = await self._model.generate(user_message)
+        prompt_context = build_prompt_context(self._state, user_message)
+        assistant_message = await self._model.generate(prompt_context)
         message_event = AssistantMessageEvent(
             session_id=self._state.session_id,
             turn_id=next_turn_id,
