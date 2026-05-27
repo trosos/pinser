@@ -23,5 +23,6 @@ def test_run_turn_command_streams_runtime_events(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "turn-started turn_id=1 user=hello" in result.stdout
     assert "user: hello" in result.stdout
+    assert "progress: generating" in result.stdout
     assert "assistant: Echo: hello" in result.stdout
     assert "turn-completed turn_id=1" in result.stdout

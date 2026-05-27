@@ -11,6 +11,7 @@ class EventType(StrEnum):
 
     TURN_STARTED = "turn_started"
     USER_MESSAGE = "user_message"
+    PROGRESS = "progress"
     ASSISTANT_MESSAGE = "assistant_message"
     TURN_COMPLETED = "turn_completed"
     TURN_CANCELLED = "turn_cancelled"
@@ -34,6 +35,16 @@ class UserMessageEvent:
     turn_id: int
     message: str
     event_type: EventType = EventType.USER_MESSAGE
+
+
+@dataclass(frozen=True, slots=True)
+class ProgressEvent:
+    """Represents ephemeral runtime progress that is not added to transcript state."""
+
+    session_id: str
+    turn_id: int
+    stage: str
+    event_type: EventType = EventType.PROGRESS
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +79,7 @@ class TurnCancelledEvent:
 type Event = (
     TurnStartedEvent
     | UserMessageEvent
+    | ProgressEvent
     | AssistantMessageEvent
     | TurnCompletedEvent
     | TurnCancelledEvent

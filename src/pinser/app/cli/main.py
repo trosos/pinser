@@ -13,6 +13,7 @@ from pinser.runtime.engine import Runtime
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
+    ProgressEvent,
     TurnCancelledEvent,
     TurnCompletedEvent,
     TurnStartedEvent,
@@ -80,6 +81,8 @@ def _render_event(event: Event) -> str:
         return f"turn-started turn_id={event.turn_id} user={event.user_message}"
     if isinstance(event, UserMessageEvent):
         return f"user: {event.message}"
+    if isinstance(event, ProgressEvent):
+        return f"progress: {event.stage}"
     if isinstance(event, AssistantMessageEvent):
         return f"assistant: {event.message}"
     if isinstance(event, TurnCompletedEvent):

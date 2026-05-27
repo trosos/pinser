@@ -40,10 +40,24 @@ async def test_session_streams_deterministic_events_in_order() -> None:
     assert [event.event_type for event in events] == [
         EventType.TURN_STARTED,
         EventType.USER_MESSAGE,
+        EventType.PROGRESS,
         EventType.ASSISTANT_MESSAGE,
         EventType.TURN_COMPLETED,
     ]
     assert session.state.turn_count == 1
+    assert session.state.transcript == [
+        UserMessage(content="hello"),
+        AssistantMessage(content="Echo: hello"),
+    ]
+
+
+async def test_progress_event_does_not_alter_transcript_state() -> None:
+    session = Session(SessionState(session_id="session-1"), FakeModel())
+
+    events = [event async for event in session.run_turn("hello")]
+    progress_event = events[2]
+
+    assert progress_event.event_type == EventType.PROGRESS
     assert session.state.transcript == [
         UserMessage(content="hello"),
         AssistantMessage(content="Echo: hello"),

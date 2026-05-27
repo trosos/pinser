@@ -11,6 +11,7 @@ from pinser.runtime.conversation.messages import AssistantMessage, ConversationI
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
+    ProgressEvent,
     TurnCancelledEvent,
     TurnCompletedEvent,
     TurnStartedEvent,
@@ -86,6 +87,11 @@ class Session:
             )
             return
 
+        yield ProgressEvent(
+            session_id=self._state.session_id,
+            turn_id=turn_state.turn_id,
+            stage="generating",
+        )
         assistant_message = await self._model.generate(turn_state.prompt_context)
         yield AssistantMessageEvent(
             session_id=self._state.session_id,
