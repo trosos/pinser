@@ -131,6 +131,8 @@ This stopping point is intentionally short of persistence and real tool executio
 
 ## Phase 2: core local tools and permission engine
 
+See also: [`docs/phase2/scope.md`](./phase2/scope.md) for the implementation-scoping note that distinguishes minimum required Phase 2 work from deferred compatibility hardening.
+
 ### Objective
 
 Make the system useful as a local coding assistant by implementing the core tool surface and safety rules.
@@ -138,7 +140,7 @@ Make the system useful as a local coding assistant by implementing the core tool
 ### Scope
 
 - implement `Read`, `Edit`, `FileWrite`, `Glob`, and `Grep`
-- implement shell execution with a safety model
+- implement Bash execution with a safety model; PowerShell is optional and deferred
 - implement the initial permission engine and approval modes
 - implement filesystem/path safety checks
 - enforce read-before-write and stale-read protections
@@ -165,10 +167,11 @@ Phase 2 is complete when all of the following are true:
 
 ### Out of scope
 
-- notebook editing beyond deferrable scaffolding
+- notebook editing; Phase 2 should fail clearly rather than provide notebook-safe mutation
 - MCP integration
 - multi-agent delegation
 - remote execution
+- user-visible background shell task identity and lifecycle
 
 ## Phase 3: transcript persistence, resume, and recovery basics
 
@@ -294,6 +297,7 @@ Support the first level of delegated and long-running work beyond the foreground
 
 - implement background task lifecycle and tracking
 - implement task stop/kill/output retrieval behavior
+- return to shell safety for background execution, including task identity, output continuity, and permission enforcement
 - implement a durable task store if needed for local coordination
 - provide typed task interfaces to CLI/headless callers
 
