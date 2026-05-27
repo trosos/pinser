@@ -35,15 +35,6 @@ Examples include:
 - providing similar convenience features with local tooling such as git and ripgrep
 - degrading gracefully when exact compatibility is impossible
 
-## Project principles
-
-- **Free software first**
-- **Public APIs first**
-- **Local-first where possible**
-- **No silent fallback to undocumented APIs**
-- **Clear disclosure of compatibility risks**
-- **Readable and auditable implementation**
-
 ## Contributing / developer docs
 
 If you want implementation details, architecture notes, or rewrite guidance, see [HACKING.md](./HACKING.md).
