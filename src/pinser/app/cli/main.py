@@ -5,12 +5,11 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from typing import Annotated
-from uuid import uuid4
 
 import typer
 
 from pinser.app.config.settings import load_settings
-from pinser.runtime.engine.session import Session, SessionState
+from pinser.runtime.engine import Runtime
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
@@ -18,7 +17,6 @@ from pinser.runtime.events.models import (
     TurnCompletedEvent,
     TurnStartedEvent,
 )
-from pinser.runtime.model.fake import FakeModel
 
 DEFAULT_WORKSPACE = Path.cwd()
 
@@ -69,12 +67,9 @@ def run_turn_command(
     """Run one minimal runtime turn and print streamed events."""
 
     load_settings(workspace)
-    session = Session(
-        SessionState(session_id=str(uuid4())),
-        FakeModel(),
-    )
+    runtime = Runtime.create()
 
-    events = asyncio.run(_collect_events(session, message))
+    events = asyncio.run(runtime.run_turn(message))
     for event in events:
         typer.echo(_render_event(event))
 
@@ -89,10 +84,6 @@ def _render_event(event: Event) -> str:
     if isinstance(event, TurnCancelledEvent):
         return f"turn-cancelled turn_id={event.turn_id}"
     raise AssertionError("unreachable event type")
-
-
-async def _collect_events(session: Session, message: str) -> list[Event]:
-    return [event async for event in session.run_turn(message)]
 
 
 if __name__ == "__main__":
