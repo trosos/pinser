@@ -113,7 +113,7 @@ Recommended local commands:
 - `uv run ruff check .`
 - `uv run mypy .`
 - `uv run pytest`
-- `uv run pinser --workspace .`
+- `uv run pinser main --workspace .`
 - `uv run pinser run-turn hello --workspace .`
 
 Current implementation includes:

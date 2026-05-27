@@ -73,14 +73,14 @@ One workable setup flow is:
 
 ```bash
 uv sync --extra dev
-uv run pinser --workspace .
+uv run pinser main --workspace .
 ```
 
 If `uv` is not on your `PATH`, you may need to invoke it explicitly, for example:
 
 ```bash
 ~/.local/bin/uv sync --extra dev
-~/.local/bin/uv run pinser --workspace .
+~/.local/bin/uv run pinser main --workspace .
 ```
 
 ## Useful commands
@@ -96,7 +96,7 @@ uv run pytest
 Run the minimal CLI bootstrap:
 
 ```bash
-uv run pinser --workspace .
+uv run pinser main --workspace .
 ```
 
 Run one minimal runtime turn:
