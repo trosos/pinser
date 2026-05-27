@@ -1,6 +1,6 @@
 # Pinser
 
-Pinser is a [vibe trash](./VIBE).
+Pinser is a [vibe trash](./HUMANS.txt).
 
 If/when ready, it will be a free-software alternative for Claude Code-style workflows.
 
