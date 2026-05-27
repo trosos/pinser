@@ -39,6 +39,37 @@ Examples include:
 - providing similar convenience features with local tooling such as git and ripgrep
 - degrading gracefully when exact compatibility is impossible
 
+## Installation
+
+Current development setup uses Python and `uv`.
+
+Minimum requirements:
+
+- Python 3.12 or newer
+- `uv` available on `PATH` or invokable explicitly
+
+One workable setup flow is:
+
+```bash
+uv sync --extra dev
+uv run pinser --workspace .
+```
+
+If `uv` is not on your `PATH`, you may need to invoke it explicitly, for example:
+
+```bash
+~/.local/bin/uv sync --extra dev
+~/.local/bin/uv run pinser --workspace .
+```
+
+To run the Phase 0 verification checks:
+
+```bash
+uv run ruff check .
+uv run mypy .
+uv run pytest
+```
+
 ## Contributing / developer docs
 
 If you want implementation details, architecture notes, or rewrite guidance, see [HACKING.md](./HACKING.md).
