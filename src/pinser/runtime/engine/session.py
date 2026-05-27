@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from pinser.runtime.context.prompt import build_prompt_context
+from pinser.runtime.context.prompt import PromptContext, build_prompt_context
 from pinser.runtime.conversation.messages import AssistantMessage, ConversationItem, UserMessage
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
@@ -16,6 +16,15 @@ from pinser.runtime.events.models import (
     TurnStartedEvent,
 )
 from pinser.runtime.model.protocol import ModelBackend
+
+
+@dataclass(frozen=True, slots=True)
+class TurnState:
+    """Per-turn derived state used during execution."""
+
+    turn_id: int
+    user_message: str
+    prompt_context: PromptContext
 
 
 @dataclass(slots=True)
@@ -40,6 +49,15 @@ class Session:
 
         return self._state
 
+    def prepare_turn(self, user_message: str) -> TurnState:
+        """Build explicit per-turn state before model execution."""
+
+        return TurnState(
+            turn_id=self._state.turn_count + 1,
+            user_message=user_message,
+            prompt_context=build_prompt_context(self._state, user_message),
+        )
+
     async def run_turn(
         self,
         user_message: str,
@@ -48,26 +66,25 @@ class Session:
     ) -> AsyncIterator[Event]:
         """Execute one turn and stream ordered runtime events."""
 
-        next_turn_id = self._state.turn_count + 1
+        turn_state = self.prepare_turn(user_message)
         started_event = TurnStartedEvent(
             session_id=self._state.session_id,
-            turn_id=next_turn_id,
-            user_message=user_message,
+            turn_id=turn_state.turn_id,
+            user_message=turn_state.user_message,
         )
         yield started_event
 
         if cancellation_event is not None and cancellation_event.is_set():
             yield TurnCancelledEvent(
                 session_id=self._state.session_id,
-                turn_id=next_turn_id,
+                turn_id=turn_state.turn_id,
             )
             return
 
-        prompt_context = build_prompt_context(self._state, user_message)
-        assistant_message = await self._model.generate(prompt_context)
+        assistant_message = await self._model.generate(turn_state.prompt_context)
         message_event = AssistantMessageEvent(
             session_id=self._state.session_id,
-            turn_id=next_turn_id,
+            turn_id=turn_state.turn_id,
             message=assistant_message,
         )
         yield message_event
@@ -75,18 +92,18 @@ class Session:
         if cancellation_event is not None and cancellation_event.is_set():
             yield TurnCancelledEvent(
                 session_id=self._state.session_id,
-                turn_id=next_turn_id,
+                turn_id=turn_state.turn_id,
             )
             return
 
-        self._state.turn_count = next_turn_id
+        self._state.turn_count = turn_state.turn_id
         self._state.transcript.extend(
             (
-                UserMessage(content=user_message),
+                UserMessage(content=turn_state.user_message),
                 AssistantMessage(content=assistant_message),
             )
         )
         yield TurnCompletedEvent(
             session_id=self._state.session_id,
-            turn_id=next_turn_id,
+            turn_id=turn_state.turn_id,
         )
