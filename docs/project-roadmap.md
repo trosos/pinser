@@ -30,6 +30,8 @@ In practice, this means the project should optimize for:
 - a credible coding assistant before advanced orchestration
 - explicit completeness gates rather than vague “mostly works” milestones
 
+Deferred work should not be documented only as “out of scope”. Any intentionally deferred item that is expected to be implemented later should name its target phase in this roadmap.
+
 ## Phase 0: project foundation and bootstrap
 
 ### Objective
@@ -235,6 +237,13 @@ Upgrade the runtime from a prototype into a credible day-to-day local assistant.
 - optional LSP integration layer
 - stronger integration tests around retries and cancellation
 
+### Deferred from earlier phases
+
+This phase also absorbs specific work intentionally excluded earlier:
+
+- from Phase 2: PowerShell execution support, if cross-platform parity remains a product goal
+- from Phase 2: richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related approval hardening
+
 ### Completeness criteria
 
 Phase 4 is complete when all of the following are true:
@@ -307,6 +316,14 @@ Support the first level of delegated and long-running work beyond the foreground
 - output retrieval and status inspection
 - stop/terminate behavior
 - tests for long-running subprocess-backed work
+
+### Deferred from earlier phases
+
+This phase also absorbs specific work intentionally excluded earlier:
+
+- from Phase 2: user-visible background shell task identity and lifecycle
+- from Phase 2: detached/background shell output continuity and retrieval semantics
+- from Phase 2: permission enforcement rules for detached/background shell execution
 
 ### Completeness criteria
 
@@ -446,6 +463,14 @@ Turn the implementation into a polished release candidate.
 - packaging/install docs
 - compatibility notes and documented limitations
 - optional richer TUI or notebook support if justified
+
+### Deferred from earlier phases
+
+This phase also absorbs specific work intentionally excluded earlier:
+
+- from Phase 2: notebook-safe editing and mutation support, if still justified by real usage
+- from Phase 2: managed-policy, migration-completeness, and enterprise-style permission compatibility work, if still justified
+- from earlier phases generally: compatibility polish intentionally omitted to keep core phases small and safe
 
 ### Completeness criteria
 

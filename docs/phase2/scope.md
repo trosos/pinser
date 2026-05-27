@@ -302,6 +302,17 @@ Suggested roadmap placement:
 
 - **Phase 10** or later compatibility hardening before release
 
+## Deferred item landing zones
+
+The following items are intentionally excluded from Phase 2 and should be picked up in the roadmap phases named here:
+
+- PowerShell execution support -> **Phase 4**
+- richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related hardening -> **Phase 4**
+- user-visible background shell task identity and lifecycle -> **Phase 6**
+- detached/background shell output continuity and permission semantics -> **Phase 6**
+- notebook-safe editing support -> **Phase 10** if still justified
+- managed-policy, migration-completeness, and enterprise-style permission compatibility work -> **Phase 10** if still justified
+
 ## Brief execution plan
 
 A sensible execution plan for Phase 2 is:
