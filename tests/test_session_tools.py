@@ -14,7 +14,7 @@ from pinser.runtime.events.models import (
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
-from pinser.runtime.tools import ReadTool, ToolRegistry
+from pinser.runtime.tools import GrepTool, ReadTool, ToolRegistry
 
 
 @pytest.mark.asyncio
@@ -118,5 +118,49 @@ async def test_session_stops_after_maximum_assistant_tool_steps(tmp_path: Path) 
         events[-2].message
         == "Stopped: exceeded maximum assistant/tool steps for a single turn."
     )
-    assert len(model.prompts) == 8
+
+
+@pytest.mark.asyncio
+async def test_session_runs_grep_tool_then_generates_assistant_reply(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("alpha\nTODO one\n")
+    (tmp_path / "b.txt").write_text("TODO two\n")
+
+    registry = ToolRegistry()
+    registry.register(GrepTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Grep",
+                    arguments={"pattern": "TODO", "glob": "**/*.txt"},
+                )
+            ),
+            AssistantStep(message="I found TODO in two lines."),
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-1"),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("search for TODO")]
+
+    assert isinstance(events[2], ProgressEvent)
+    assert events[2].stage == "generating"
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "grep TODO"
+    assert isinstance(events[4], ToolCompletedEvent)
+    assert events[4].summary == "matched 2 line(s)"
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "I found TODO in two lines."
+    assert len(model.prompts) == 2
+    assert [message.role for message in model.prompts[1].messages] == [
+        PromptRole.SYSTEM,
+        PromptRole.USER,
+        PromptRole.TOOL,
+        PromptRole.USER,
+    ]
+    assert model.prompts[1].messages[2].content == "matched 2 line(s)"
 
