@@ -10,15 +10,17 @@ This file provides guidance to Claw Code (clawcode.dev) when working with code i
 - Quality tools: pytest, pytest-asyncio, ruff, mypy
 - Dependency workflow: uv
 
-## Verification commands
-- `uv run ruff check .`
-- `uv run mypy .`
-- `uv run pytest`
-- `uv run pinser --workspace .`
+## Commit sequence for Python code changes
+- For commits that touch Python code, run verification in this order:
+  1. `uv run mypy .`
+  2. `uv run pytest`
+  3. `uv run ruff check .`
+- Only commit after all three pass.
+- After committing, clean Python cache artifacts with `pyclean .` (note: routine post-commit cleanup does not use `--debris`).
 
 ## Local tool notes
-- In your environment, `uv` may be available at `~/.local/bin/uv`.
-- If `uv` is not on `PATH`, prefer invoking it explicitly from `~/.local/bin/uv` before changing repo files or workflows.
+- In your environment, `uv` and `pyclean` may be available at `~/.local/bin/uv` and `~/.local/bin/pyclean`.
+- If either is not on `PATH`, prefer invoking it explicitly from `~/.local/bin/`.
 
 ## Working agreement
 - Prefer small, reviewable changes and keep generated bootstrap files aligned with actual repo workflows.
