@@ -33,6 +33,8 @@ from pinser.runtime.model.protocol import ModelBackend
 from pinser.runtime.permissions import PermissionDecisionKind
 from pinser.runtime.tools import ToolExecutionResult, ToolInvocation, ToolRegistry
 
+MAX_ASSISTANT_STEPS_PER_TURN = 8
+
 
 @dataclass(frozen=True, slots=True)
 class TurnState:
@@ -126,6 +128,7 @@ class Session:
             stage="generating",
         )
         step = await self._generate_step(turn_state)
+        step_count = 1
         while True:
             if cancellation_event is not None and cancellation_event.is_set():
                 yield TurnCancelledEvent(
@@ -133,6 +136,18 @@ class Session:
                     turn_id=turn_state.turn_id,
                 )
                 return
+
+            if step.tool_call is not None and step_count >= MAX_ASSISTANT_STEPS_PER_TURN:
+                limit_message = (
+                    "Stopped: exceeded maximum assistant/tool steps for a single turn."
+                )
+                yield AssistantMessageEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_state.turn_id,
+                    message=limit_message,
+                )
+                self._state.transcript.append(AssistantMessage(content=limit_message))
+                break
 
             next_step, pending_events, transcript_items = await self._handle_assistant_step(
                 turn_state, step
@@ -151,6 +166,7 @@ class Session:
                 self._state.transcript.append(AssistantMessage(content=final_message))
                 break
 
+            step_count += 1
             step = next_step
 
         yield TurnCompletedEvent(

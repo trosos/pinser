@@ -89,3 +89,34 @@ async def test_session_denies_read_tool_when_path_needs_approval(tmp_path: Path)
     assert isinstance(events[5], ToolDeniedEvent)
     assert isinstance(events[6], AssistantMessageEvent)
     assert events[6].message == "Denied: approval-required action blocked by dontAsk mode."
+
+
+@pytest.mark.asyncio
+async def test_session_stops_after_maximum_assistant_tool_steps(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("hello from file")
+
+    registry = ToolRegistry()
+    registry.register(ReadTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"}))
+            for _ in range(8)
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-1"),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("keep reading the note")]
+
+    assert isinstance(events[-2], AssistantMessageEvent)
+    assert (
+        events[-2].message
+        == "Stopped: exceeded maximum assistant/tool steps for a single turn."
+    )
+    assert len(model.prompts) == 8
+
