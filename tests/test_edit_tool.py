@@ -5,6 +5,7 @@ import pytest
 from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.tools import EditTool
 from pinser.runtime.tools.protocol import ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError, ToolSafetyBlockedError
 
 
 @pytest.mark.asyncio
@@ -50,7 +51,7 @@ async def test_edit_tool_requires_prior_read(tmp_path: Path) -> None:
         file_state=FileStateTracker(workspace_root=tmp_path),
     )
 
-    with pytest.raises(ValueError, match="requires prior read"):
+    with pytest.raises(ToolSafetyBlockedError, match="requires prior read"):
         await tool.execute(
             ToolInvocation(
                 tool_name="Edit",
@@ -73,7 +74,7 @@ async def test_edit_tool_rejects_multiple_matches_without_replace_all(
     tracker.record_read("notes.txt", "beta\nbeta\n")
     tool = EditTool(workspace_root=tmp_path, file_state=tracker)
 
-    with pytest.raises(ValueError, match="must match exactly once"):
+    with pytest.raises(ToolArgumentError, match="must match exactly once"):
         await tool.execute(
             ToolInvocation(
                 tool_name="Edit",
@@ -118,7 +119,7 @@ async def test_edit_tool_rejects_notebook_paths(tmp_path: Path) -> None:
     tracker.record_read("notebook.ipynb", '{"cells": []}\n')
     tool = EditTool(workspace_root=tmp_path, file_state=tracker)
 
-    with pytest.raises(ValueError, match="notebook-specific tool"):
+    with pytest.raises(ToolArgumentError, match="notebook-specific tool"):
         await tool.execute(
             ToolInvocation(
                 tool_name="Edit",
@@ -134,7 +135,7 @@ async def test_edit_tool_rejects_notebook_paths(tmp_path: Path) -> None:
 def test_edit_tool_requires_non_empty_path(tmp_path: Path) -> None:
     tool = EditTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="non-empty string path"):
+    with pytest.raises(ToolArgumentError, match="non-empty string path"):
         tool.build_permission_request(ToolInvocation(tool_name="Edit", arguments={}))
 
 

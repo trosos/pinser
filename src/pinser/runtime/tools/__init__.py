@@ -7,6 +7,12 @@ from pinser.runtime.tools.protocol import Tool, ToolExecutionResult, ToolInvocat
 from pinser.runtime.tools.read import ReadTool
 from pinser.runtime.tools.registry import ToolRegistry
 from pinser.runtime.tools.write import WriteTool
+from pinser.runtime.tools_errors import (
+    ToolArgumentError,
+    ToolExecutionError,
+    ToolPermissionDeniedError,
+    ToolSafetyBlockedError,
+)
 
 __all__ = [
     "EditTool",
@@ -14,8 +20,12 @@ __all__ = [
     "GrepTool",
     "ReadTool",
     "Tool",
+    "ToolArgumentError",
+    "ToolExecutionError",
     "ToolExecutionResult",
     "ToolInvocation",
+    "ToolPermissionDeniedError",
     "ToolRegistry",
+    "ToolSafetyBlockedError",
     "WriteTool",
 ]

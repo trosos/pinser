@@ -14,6 +14,7 @@ from pinser.runtime.permissions import (
 )
 from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError, ToolSafetyBlockedError
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,24 +60,26 @@ class EditTool:
         target = resolved.expanded
         if target.suffix == ".ipynb":
             msg = "notebook files must be edited with the notebook-specific tool"
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
 
         original_content = target.read_text()
         if self.file_state is not None:
             try:
                 self.file_state.require_safe_overwrite(path, original_content)
-            except ValueError as exc:
+            except ToolSafetyBlockedError as exc:
                 if str(exc) == "write requires prior read for existing file":
-                    raise ValueError("edit requires prior read for existing file") from exc
+                    raise ToolSafetyBlockedError(
+                        "edit requires prior read for existing file"
+                    ) from exc
                 raise
 
         occurrences = original_content.count(old_string)
         if occurrences == 0:
             msg = "old_string not found in file"
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         if not replace_all and occurrences != 1:
             msg = "old_string must match exactly once; use replace_all for multiple matches"
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
 
         updated_content = original_content.replace(
             old_string,
@@ -106,7 +109,7 @@ class EditTool:
         path = invocation.arguments.get("path")
         if not isinstance(path, str) or not path:
             msg = "Edit tool requires a non-empty string path argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return path
 
     @staticmethod
@@ -114,7 +117,7 @@ class EditTool:
         value = invocation.arguments.get(key)
         if not isinstance(value, str):
             msg = f"Edit tool requires a string {key} argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return value
 
     @staticmethod
@@ -122,7 +125,7 @@ class EditTool:
         value = invocation.arguments.get("replace_all", False)
         if not isinstance(value, bool):
             msg = "Edit tool requires replace_all to be a boolean when provided."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return value
 
     @staticmethod

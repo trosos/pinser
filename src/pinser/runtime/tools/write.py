@@ -14,6 +14,7 @@ from pinser.runtime.permissions import (
 )
 from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +80,7 @@ class WriteTool:
         path = invocation.arguments.get("path")
         if not isinstance(path, str) or not path:
             msg = "Write tool requires a non-empty string path argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return path
 
     @staticmethod
@@ -87,7 +88,7 @@ class WriteTool:
         content = invocation.arguments.get("content")
         if not isinstance(content, str):
             msg = "Write tool requires a string content argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return content
 
     @staticmethod

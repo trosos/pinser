@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pinser.runtime.safety import PathSafety
+from pinser.runtime.tools_errors import ToolSafetyBlockedError
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,13 +46,13 @@ class FileStateTracker:
         observation = self._observations.get(resolved_path)
         if observation is None:
             msg = "write requires prior read for existing file"
-            raise ValueError(msg)
+            raise ToolSafetyBlockedError(msg)
         if observation.is_partial:
             msg = "write requires non-partial prior read for existing file"
-            raise ValueError(msg)
+            raise ToolSafetyBlockedError(msg)
         if observation.content != current_content:
             msg = "write blocked because file changed since last read"
-            raise ValueError(msg)
+            raise ToolSafetyBlockedError(msg)
 
     def _resolve_workspace_path(self, path: str) -> str:
         safety = PathSafety(self.workspace_root)

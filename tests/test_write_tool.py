@@ -5,6 +5,7 @@ import pytest
 from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.tools import WriteTool
 from pinser.runtime.tools.protocol import ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError, ToolSafetyBlockedError
 
 
 @pytest.mark.asyncio
@@ -58,7 +59,7 @@ async def test_write_tool_requires_prior_read_for_existing_file(tmp_path: Path) 
     tracker = FileStateTracker(workspace_root=tmp_path)
     tool = WriteTool(workspace_root=tmp_path, file_state=tracker)
 
-    with pytest.raises(ValueError, match="requires prior read"):
+    with pytest.raises(ToolSafetyBlockedError, match="requires prior read"):
         await tool.execute(
             ToolInvocation(
                 tool_name="Write",
@@ -90,14 +91,14 @@ async def test_write_tool_allows_overwrite_after_matching_prior_read(tmp_path: P
 def test_write_tool_requires_non_empty_path(tmp_path: Path) -> None:
     tool = WriteTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="non-empty string path"):
+    with pytest.raises(ToolArgumentError, match="non-empty string path"):
         tool.build_permission_request(ToolInvocation(tool_name="Write", arguments={}))
 
 
 def test_write_tool_requires_string_content(tmp_path: Path) -> None:
     tool = WriteTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="string content argument"):
+    with pytest.raises(ToolArgumentError, match="string content argument"):
         tool._require_content(ToolInvocation(tool_name="Write", arguments={"path": "a.txt"}))
 
 

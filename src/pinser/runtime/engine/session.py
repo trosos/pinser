@@ -34,6 +34,7 @@ from pinser.runtime.model.messages import AssistantStep
 from pinser.runtime.model.protocol import ModelBackend
 from pinser.runtime.permissions import PermissionDecisionKind
 from pinser.runtime.tools import ToolExecutionResult, ToolInvocation, ToolRegistry
+from pinser.runtime.tools_errors import ToolExecutionError, ToolSafetyBlockedError
 
 MAX_ASSISTANT_STEPS_PER_TURN = 8
 
@@ -216,89 +217,49 @@ class Session:
         ]
         decision = tool.decide_permission(invocation)
         if decision.kind is PermissionDecisionKind.ASK:
-            result_message = ToolResultMessage(
+            return self._permission_denied_response(
+                turn_id=turn_state.turn_id,
                 tool_name=invocation.tool_name,
-                content="approval-required action blocked by dontAsk mode.",
-                is_error=True,
-            )
-            return (
-                AssistantStep(message="Denied: approval-required action blocked by dontAsk mode."),
-                events
-                + [
-                    PermissionRequiredEvent(
-                        session_id=self._state.session_id,
-                        turn_id=turn_state.turn_id,
-                        tool_name=invocation.tool_name,
-                        summary=permission_request.summary,
-                        resource=permission_request.resource,
-                    ),
-                    ToolDeniedEvent(
-                        session_id=self._state.session_id,
-                        turn_id=turn_state.turn_id,
-                        tool_name=invocation.tool_name,
-                        decision=PermissionDecisionKind.DENY,
-                        reason="approval-required action blocked by dontAsk mode.",
-                    ),
-                ],
-                [result_message],
+                events=events,
+                permission_required=True,
+                summary=permission_request.summary,
+                resource=permission_request.resource,
+                reason="approval-required action blocked by dontAsk mode.",
             )
         if decision.kind is PermissionDecisionKind.DENY:
             denial_reason = decision.reason or "tool invocation denied."
-            result_message = ToolResultMessage(
+            return self._permission_denied_response(
+                turn_id=turn_state.turn_id,
                 tool_name=invocation.tool_name,
-                content=denial_reason,
-                is_error=True,
-            )
-            return (
-                AssistantStep(message=f"Denied: {denial_reason}"),
-                events
-                + [
-                    ToolDeniedEvent(
-                        session_id=self._state.session_id,
-                        turn_id=turn_state.turn_id,
-                        tool_name=invocation.tool_name,
-                        decision=PermissionDecisionKind.DENY,
-                        reason=denial_reason,
-                    )
-                ],
-                [result_message],
+                events=events,
+                permission_required=False,
+                summary=permission_request.summary,
+                resource=permission_request.resource,
+                reason=denial_reason,
             )
 
         try:
             result = await tool.execute(invocation)
-        except Exception as exc:
-            error_text = str(exc)
-            result_message = ToolResultMessage(
+        except ToolSafetyBlockedError as exc:
+            return self._blocked_response(
+                turn_id=turn_state.turn_id,
                 tool_name=invocation.tool_name,
-                content=error_text,
-                is_error=True,
+                events=events,
+                reason=str(exc),
             )
-            if self._is_blocked_safety_reason(error_text):
-                return (
-                    AssistantStep(message=f"Blocked: {error_text}"),
-                    events
-                    + [
-                        ToolBlockedEvent(
-                            session_id=self._state.session_id,
-                            turn_id=turn_state.turn_id,
-                            tool_name=invocation.tool_name,
-                            reason=error_text,
-                        )
-                    ],
-                    [result_message],
-                )
-            return (
-                AssistantStep(message=f"Error: {error_text}"),
-                events
-                + [
-                    ToolFailedEvent(
-                        session_id=self._state.session_id,
-                        turn_id=turn_state.turn_id,
-                        tool_name=invocation.tool_name,
-                        reason=error_text,
-                    )
-                ],
-                [result_message],
+        except ToolExecutionError as exc:
+            return self._failed_response(
+                turn_id=turn_state.turn_id,
+                tool_name=invocation.tool_name,
+                events=events,
+                reason=str(exc),
+            )
+        except Exception as exc:
+            return self._failed_response(
+                turn_id=turn_state.turn_id,
+                tool_name=invocation.tool_name,
+                events=events,
+                reason=str(exc),
             )
 
         events.append(
@@ -324,11 +285,98 @@ class Session:
             return content
         return result.summary
 
-    @staticmethod
-    def _is_blocked_safety_reason(reason: str) -> bool:
-        return reason in {
-            "write requires prior read for existing file",
-            "write requires non-partial prior read for existing file",
-            "write blocked because file changed since last read",
-            "edit requires prior read for existing file",
-        }
+    def _permission_denied_response(
+        self,
+        *,
+        turn_id: int,
+        tool_name: str,
+        events: list[Event],
+        permission_required: bool,
+        summary: str,
+        resource: str | None,
+        reason: str,
+    ) -> tuple[AssistantStep, list[Event], list[ConversationItem]]:
+        result_message = ToolResultMessage(
+            tool_name=tool_name,
+            content=reason,
+            is_error=True,
+        )
+        denied_events = list(events)
+        if permission_required:
+            denied_events.append(
+                PermissionRequiredEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_id,
+                    tool_name=tool_name,
+                    summary=summary,
+                    resource=resource,
+                )
+            )
+        denied_events.append(
+            ToolDeniedEvent(
+                session_id=self._state.session_id,
+                turn_id=turn_id,
+                tool_name=tool_name,
+                decision=PermissionDecisionKind.DENY,
+                reason=reason,
+            )
+        )
+        return (
+            AssistantStep(message=f"Denied: {reason}"),
+            denied_events,
+            [result_message],
+        )
+
+    def _blocked_response(
+        self,
+        *,
+        turn_id: int,
+        tool_name: str,
+        events: list[Event],
+        reason: str,
+    ) -> tuple[AssistantStep, list[Event], list[ConversationItem]]:
+        result_message = ToolResultMessage(
+            tool_name=tool_name,
+            content=reason,
+            is_error=True,
+        )
+        return (
+            AssistantStep(message=f"Blocked: {reason}"),
+            events
+            + [
+                ToolBlockedEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_id,
+                    tool_name=tool_name,
+                    reason=reason,
+                )
+            ],
+            [result_message],
+        )
+
+    def _failed_response(
+        self,
+        *,
+        turn_id: int,
+        tool_name: str,
+        events: list[Event],
+        reason: str,
+    ) -> tuple[AssistantStep, list[Event], list[ConversationItem]]:
+        result_message = ToolResultMessage(
+            tool_name=tool_name,
+            content=reason,
+            is_error=True,
+        )
+        return (
+            AssistantStep(message=f"Error: {reason}"),
+            events
+            + [
+                ToolFailedEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_id,
+                    tool_name=tool_name,
+                    reason=reason,
+                )
+            ],
+            [result_message],
+        )

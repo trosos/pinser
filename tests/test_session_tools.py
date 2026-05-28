@@ -12,6 +12,7 @@ from pinser.runtime.events.models import (
     ToolBlockedEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
+    ToolFailedEvent,
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
@@ -321,3 +322,34 @@ async def test_session_rejects_edit_without_runtime_read(tmp_path: Path) -> None
     assert events[4].reason == "edit requires prior read for existing file"
     assert isinstance(events[5], AssistantMessageEvent)
     assert events[5].message == "Blocked: edit requires prior read for existing file"
+
+
+@pytest.mark.asyncio
+async def test_session_reports_tool_argument_errors_as_failures(tmp_path: Path) -> None:
+    registry = ToolRegistry()
+    registry.register(WriteTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Write",
+                    arguments={"path": "note.txt", "content": 123},
+                )
+            )
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-5", workspace_root=tmp_path),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("write invalid content")]
+
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "write note.txt"
+    assert isinstance(events[4], ToolFailedEvent)
+    assert events[4].reason == "Write tool requires a string content argument."
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "Error: Write tool requires a string content argument."
