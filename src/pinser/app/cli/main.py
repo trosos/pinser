@@ -15,6 +15,7 @@ from pinser.runtime.events.models import (
     Event,
     PermissionRequiredEvent,
     ProgressEvent,
+    ToolBlockedEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
     ToolFailedEvent,
@@ -97,6 +98,8 @@ def _render_event(event: Event) -> str:
         return f"Permission required: {event.summary}"
     if isinstance(event, ToolDeniedEvent):
         return f"Denied: {event.reason}"
+    if isinstance(event, ToolBlockedEvent):
+        return f"Blocked: {event.reason}"
     if isinstance(event, ToolFailedEvent):
         return f"Error: {event.reason}"
     if isinstance(event, AssistantMessageEvent):

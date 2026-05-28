@@ -9,9 +9,9 @@ from pinser.runtime.events.models import (
     AssistantMessageEvent,
     PermissionRequiredEvent,
     ProgressEvent,
+    ToolBlockedEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
-    ToolFailedEvent,
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
@@ -229,10 +229,10 @@ async def test_session_rejects_write_without_runtime_read(tmp_path: Path) -> Non
     assert file_path.read_text() == "old\nvalue\n"
     assert isinstance(events[3], ToolStartedEvent)
     assert events[3].summary == "write note.txt"
-    assert isinstance(events[4], ToolFailedEvent)
+    assert isinstance(events[4], ToolBlockedEvent)
     assert events[4].reason == "write requires prior read for existing file"
     assert isinstance(events[5], AssistantMessageEvent)
-    assert events[5].message == "Error: write requires prior read for existing file"
+    assert events[5].message == "Blocked: write requires prior read for existing file"
 
 
 @pytest.mark.asyncio
@@ -317,7 +317,7 @@ async def test_session_rejects_edit_without_runtime_read(tmp_path: Path) -> None
     assert file_path.read_text() == "alpha\nbeta\n"
     assert isinstance(events[3], ToolStartedEvent)
     assert events[3].summary == "edit note.txt"
-    assert isinstance(events[4], ToolFailedEvent)
+    assert isinstance(events[4], ToolBlockedEvent)
     assert events[4].reason == "edit requires prior read for existing file"
     assert isinstance(events[5], AssistantMessageEvent)
-    assert events[5].message == "Error: edit requires prior read for existing file"
+    assert events[5].message == "Blocked: edit requires prior read for existing file"

@@ -20,6 +20,7 @@ from pinser.runtime.events.models import (
     Event,
     PermissionRequiredEvent,
     ProgressEvent,
+    ToolBlockedEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
     ToolFailedEvent,
@@ -272,6 +273,20 @@ class Session:
                 content=error_text,
                 is_error=True,
             )
+            if self._is_blocked_safety_reason(error_text):
+                return (
+                    AssistantStep(message=f"Blocked: {error_text}"),
+                    events
+                    + [
+                        ToolBlockedEvent(
+                            session_id=self._state.session_id,
+                            turn_id=turn_state.turn_id,
+                            tool_name=invocation.tool_name,
+                            reason=error_text,
+                        )
+                    ],
+                    [result_message],
+                )
             return (
                 AssistantStep(message=f"Error: {error_text}"),
                 events
@@ -308,3 +323,12 @@ class Session:
         if isinstance(content, str):
             return content
         return result.summary
+
+    @staticmethod
+    def _is_blocked_safety_reason(reason: str) -> bool:
+        return reason in {
+            "write requires prior read for existing file",
+            "write requires non-partial prior read for existing file",
+            "write blocked because file changed since last read",
+            "edit requires prior read for existing file",
+        }

@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 from pinser.app.cli.main import _render_event, app
 from pinser.runtime.events.models import (
     PermissionRequiredEvent,
+    ToolBlockedEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
     ToolFailedEvent,
@@ -104,6 +105,17 @@ def test_render_event_formats_phase_2_tool_events() -> None:
             )
         )
         == "Denied: approval-required action blocked by dontAsk mode."
+    )
+    assert (
+        _render_event(
+            ToolBlockedEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Edit",
+                reason="file changed since last read: /workspace/file.txt.",
+            )
+        )
+        == "Blocked: file changed since last read: /workspace/file.txt."
     )
     assert (
         _render_event(

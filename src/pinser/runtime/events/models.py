@@ -18,6 +18,7 @@ class EventType(StrEnum):
     TOOL_COMPLETED = "tool_completed"
     PERMISSION_REQUIRED = "permission_required"
     TOOL_DENIED = "tool_denied"
+    TOOL_BLOCKED = "tool_blocked"
     TOOL_FAILED = "tool_failed"
     ASSISTANT_MESSAGE = "assistant_message"
     TURN_COMPLETED = "turn_completed"
@@ -101,6 +102,17 @@ class ToolDeniedEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolBlockedEvent:
+    """Signals that a tool action was blocked by a local safety invariant."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    reason: str
+    event_type: EventType = EventType.TOOL_BLOCKED
+
+
+@dataclass(frozen=True, slots=True)
 class ToolFailedEvent:
     """Signals that a tool action failed after attempting execution."""
 
@@ -148,6 +160,7 @@ type Event = (
     | ToolCompletedEvent
     | PermissionRequiredEvent
     | ToolDeniedEvent
+    | ToolBlockedEvent
     | ToolFailedEvent
     | AssistantMessageEvent
     | TurnCompletedEvent
