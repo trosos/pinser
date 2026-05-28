@@ -117,46 +117,57 @@ class Session:
             )
             return
 
+        self._state.turn_count = turn_state.turn_id
+        self._state.transcript.append(UserMessage(content=turn_state.user_message))
+
         yield ProgressEvent(
             session_id=self._state.session_id,
             turn_id=turn_state.turn_id,
             stage="generating",
         )
-        step = await self._model.generate(turn_state.prompt_context)
-        final_message, pending_events, tool_result = await self._handle_assistant_step(
-            turn_state, step
-        )
+        step = await self._generate_step(turn_state)
+        while True:
+            if cancellation_event is not None and cancellation_event.is_set():
+                yield TurnCancelledEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_state.turn_id,
+                )
+                return
 
-        if cancellation_event is not None and cancellation_event.is_set():
-            yield TurnCancelledEvent(
-                session_id=self._state.session_id,
-                turn_id=turn_state.turn_id,
+            next_step, pending_events, transcript_items = await self._handle_assistant_step(
+                turn_state, step
             )
-            return
+            for event in pending_events:
+                yield event
+            self._state.transcript.extend(transcript_items)
 
-        for event in pending_events:
-            yield event
-        yield AssistantMessageEvent(
-            session_id=self._state.session_id,
-            turn_id=turn_state.turn_id,
-            message=final_message,
-        )
+            if next_step.tool_call is None:
+                final_message = next_step.message or ""
+                yield AssistantMessageEvent(
+                    session_id=self._state.session_id,
+                    turn_id=turn_state.turn_id,
+                    message=final_message,
+                )
+                self._state.transcript.append(AssistantMessage(content=final_message))
+                break
 
-        self._state.turn_count = turn_state.turn_id
-        self._state.transcript.append(UserMessage(content=turn_state.user_message))
-        if tool_result is not None:
-            self._state.transcript.append(tool_result)
-        self._state.transcript.append(AssistantMessage(content=final_message))
+            step = next_step
+
         yield TurnCompletedEvent(
             session_id=self._state.session_id,
             turn_id=turn_state.turn_id,
         )
 
+    async def _generate_step(self, turn_state: TurnState) -> AssistantStep:
+        return await self._model.generate(
+            build_prompt_context(self._state, turn_state.user_message)
+        )
+
     async def _handle_assistant_step(
         self, turn_state: TurnState, step: AssistantStep
-    ) -> tuple[str, list[Event], ToolResultMessage | None]:
+    ) -> tuple[AssistantStep, list[Event], list[ConversationItem]]:
         if step.tool_call is None:
-            return step.message or "", [], None
+            return step, [], []
 
         invocation = ToolInvocation(
             tool_name=step.tool_call.tool_name,
@@ -164,7 +175,7 @@ class Session:
         )
         tool = self._tools.get(invocation.tool_name)
         if tool is None:
-            return f"Tool {invocation.tool_name} is not available.", [], None
+            return AssistantStep(message=f"Tool {invocation.tool_name} is not available."), [], []
 
         permission_request = tool.build_permission_request(invocation)
         events: list[Event] = [
@@ -177,8 +188,15 @@ class Session:
         ]
         decision = tool.decide_permission(invocation)
         if decision.kind is PermissionDecisionKind.ASK:
-            events.extend(
-                [
+            result_message = ToolResultMessage(
+                tool_name=invocation.tool_name,
+                content="approval-required action blocked by dontAsk mode.",
+                is_error=True,
+            )
+            return (
+                AssistantStep(message="Denied: approval-required action blocked by dontAsk mode."),
+                events
+                + [
                     PermissionRequiredEvent(
                         session_id=self._state.session_id,
                         turn_id=turn_state.turn_id,
@@ -193,54 +211,53 @@ class Session:
                         decision=PermissionDecisionKind.DENY,
                         reason="approval-required action blocked by dontAsk mode.",
                     ),
-                ]
-            )
-            result_message = ToolResultMessage(
-                tool_name=invocation.tool_name,
-                content="approval-required action blocked by dontAsk mode.",
-                is_error=True,
-            )
-            return (
-                "Denied: approval-required action blocked by dontAsk mode.",
-                events,
-                result_message,
+                ],
+                [result_message],
             )
         if decision.kind is PermissionDecisionKind.DENY:
             denial_reason = decision.reason or "tool invocation denied."
-            events.append(
-                ToolDeniedEvent(
-                    session_id=self._state.session_id,
-                    turn_id=turn_state.turn_id,
-                    tool_name=invocation.tool_name,
-                    decision=PermissionDecisionKind.DENY,
-                    reason=denial_reason,
-                )
-            )
             result_message = ToolResultMessage(
                 tool_name=invocation.tool_name,
                 content=denial_reason,
                 is_error=True,
             )
-            return f"Denied: {denial_reason}", events, result_message
+            return (
+                AssistantStep(message=f"Denied: {denial_reason}"),
+                events
+                + [
+                    ToolDeniedEvent(
+                        session_id=self._state.session_id,
+                        turn_id=turn_state.turn_id,
+                        tool_name=invocation.tool_name,
+                        decision=PermissionDecisionKind.DENY,
+                        reason=denial_reason,
+                    )
+                ],
+                [result_message],
+            )
 
         try:
             result = await tool.execute(invocation)
         except Exception as exc:
             error_text = str(exc)
-            events.append(
-                ToolFailedEvent(
-                    session_id=self._state.session_id,
-                    turn_id=turn_state.turn_id,
-                    tool_name=invocation.tool_name,
-                    reason=error_text,
-                )
-            )
             result_message = ToolResultMessage(
                 tool_name=invocation.tool_name,
                 content=error_text,
                 is_error=True,
             )
-            return f"Error: {error_text}", events, result_message
+            return (
+                AssistantStep(message=f"Error: {error_text}"),
+                events
+                + [
+                    ToolFailedEvent(
+                        session_id=self._state.session_id,
+                        turn_id=turn_state.turn_id,
+                        tool_name=invocation.tool_name,
+                        reason=error_text,
+                    )
+                ],
+                [result_message],
+            )
 
         events.append(
             ToolCompletedEvent(
@@ -251,11 +268,13 @@ class Session:
             )
         )
         rendered_result = self._render_tool_result_message(result)
-        result_message = ToolResultMessage(
+        tool_result = ToolResultMessage(
             tool_name=invocation.tool_name,
             content=rendered_result,
         )
-        return rendered_result, events, result_message
+        self._state.transcript.append(tool_result)
+        next_step = await self._generate_step(turn_state)
+        return next_step, events, []
 
     def _render_tool_result_message(self, result: ToolExecutionResult) -> str:
         content = result.output.get("content")

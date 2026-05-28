@@ -19,7 +19,8 @@ async def test_tool_results_are_stored_explicitly_in_transcript(tmp_path: Path) 
     registry.register(ReadTool(workspace_root=tmp_path))
     model = SequenceModel(
         responses=[
-            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"}))
+            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"})),
+            AssistantStep(message="hello from file"),
         ]
     )
     session = Session(
@@ -31,6 +32,7 @@ async def test_tool_results_are_stored_explicitly_in_transcript(tmp_path: Path) 
 
     _ = [event async for event in session.run_turn("read the note")]
 
+    assert len(model.prompts) == 2
     assert len(session.state.transcript) == 3
     assert isinstance(session.state.transcript[0], UserMessage)
     assert session.state.transcript[0].content == "read the note"
