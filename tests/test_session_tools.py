@@ -15,7 +15,7 @@ from pinser.runtime.events.models import (
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
-from pinser.runtime.tools import GrepTool, ReadTool, ToolRegistry, WriteTool
+from pinser.runtime.tools import EditTool, GrepTool, ReadTool, ToolRegistry, WriteTool
 
 
 @pytest.mark.asyncio
@@ -233,3 +233,91 @@ async def test_session_rejects_write_without_runtime_read(tmp_path: Path) -> Non
     assert events[4].reason == "write requires prior read for existing file"
     assert isinstance(events[5], AssistantMessageEvent)
     assert events[5].message == "Error: write requires prior read for existing file"
+
+
+@pytest.mark.asyncio
+async def test_session_runs_edit_tool_then_generates_assistant_reply(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("alpha\nbeta\n")
+
+    state = SessionState(session_id="session-3", workspace_root=tmp_path)
+    registry = ToolRegistry()
+    registry.register(ReadTool(workspace_root=tmp_path, file_state=state.file_state))
+    registry.register(EditTool(workspace_root=tmp_path, file_state=state.file_state))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"})),
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Edit",
+                    arguments={
+                        "path": "note.txt",
+                        "old_string": "beta",
+                        "new_string": "gamma",
+                    },
+                )
+            ),
+            AssistantStep(message="Updated the matching line."),
+        ]
+    )
+    session = Session(state, model, workspace_root=tmp_path, tools=registry)
+
+    events = [event async for event in session.run_turn("replace beta with gamma")]
+
+    assert file_path.read_text() == "alpha\ngamma\n"
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "read note.txt"
+    assert isinstance(events[4], ToolCompletedEvent)
+    assert events[4].summary == "read note.txt"
+    assert isinstance(events[5], ToolStartedEvent)
+    assert events[5].summary == "edit note.txt"
+    assert isinstance(events[6], ToolCompletedEvent)
+    assert events[6].summary == "edited note.txt"
+    assert isinstance(events[7], AssistantMessageEvent)
+    assert events[7].message == "Updated the matching line."
+    assert len(model.prompts) == 3
+    assert [message.role for message in model.prompts[2].messages] == [
+        PromptRole.SYSTEM,
+        PromptRole.USER,
+        PromptRole.TOOL,
+        PromptRole.TOOL,
+        PromptRole.USER,
+    ]
+    assert model.prompts[2].messages[2].content == "alpha\nbeta\n"
+    assert model.prompts[2].messages[3].content == "alpha\ngamma\n"
+    assert model.prompts[2].messages[4].content == "replace beta with gamma"
+
+
+@pytest.mark.asyncio
+async def test_session_rejects_edit_without_runtime_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("alpha\nbeta\n")
+
+    state = SessionState(session_id="session-4", workspace_root=tmp_path)
+    registry = ToolRegistry()
+    registry.register(EditTool(workspace_root=tmp_path, file_state=state.file_state))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Edit",
+                    arguments={
+                        "path": "note.txt",
+                        "old_string": "beta",
+                        "new_string": "gamma",
+                    },
+                )
+            )
+        ]
+    )
+    session = Session(state, model, workspace_root=tmp_path, tools=registry)
+
+    events = [event async for event in session.run_turn("replace beta with gamma")]
+
+    assert file_path.read_text() == "alpha\nbeta\n"
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "edit note.txt"
+    assert isinstance(events[4], ToolFailedEvent)
+    assert events[4].reason == "edit requires prior read for existing file"
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "Error: edit requires prior read for existing file"

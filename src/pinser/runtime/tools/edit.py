@@ -63,7 +63,12 @@ class EditTool:
 
         original_content = target.read_text()
         if self.file_state is not None:
-            self.file_state.require_safe_overwrite(path, original_content)
+            try:
+                self.file_state.require_safe_overwrite(path, original_content)
+            except ValueError as exc:
+                if str(exc) == "write requires prior read for existing file":
+                    raise ValueError("edit requires prior read for existing file") from exc
+                raise
 
         occurrences = original_content.count(old_string)
         if occurrences == 0:
