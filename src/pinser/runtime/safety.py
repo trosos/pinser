@@ -19,6 +19,10 @@ _BLOCKED_READ_PATHS = {
     "/dev/urandom",
     "/dev/zero",
 }
+_BLOCKED_WRITE_PATHS = {
+    ".pinser",
+    ".git",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +83,25 @@ class PathSafety:
 
         if resolved.workspace_relative is None:
             return PathSafetyDecision(allowed=False, reason="path-outside-workspace")
+
+        return PathSafetyDecision(allowed=True)
+
+    def check_write_path(self, raw_path: str) -> PathSafetyDecision:
+        resolved = self.resolve(raw_path)
+
+        if self._looks_like_network_path(raw_path):
+            return PathSafetyDecision(
+                allowed=False,
+                reason="network-path-requires-approval",
+                requires_approval=True,
+            )
+
+        if resolved.workspace_relative is None:
+            return PathSafetyDecision(allowed=False, reason="path-outside-workspace")
+
+        top_level = resolved.workspace_relative.split("/", maxsplit=1)[0].lower()
+        if top_level in _BLOCKED_WRITE_PATHS:
+            return PathSafetyDecision(allowed=False, reason="protected-path")
 
         return PathSafetyDecision(allowed=True)
 
