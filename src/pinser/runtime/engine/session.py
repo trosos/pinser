@@ -33,7 +33,8 @@ from pinser.runtime.events.models import (
 from pinser.runtime.model.messages import AssistantStep
 from pinser.runtime.model.protocol import ModelBackend
 from pinser.runtime.permissions import PermissionDecisionKind
-from pinser.runtime.tools import ToolExecutionResult, ToolInvocation, ToolRegistry
+from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools.registry import ToolRegistry
 from pinser.runtime.tools_errors import ToolExecutionError, ToolSafetyBlockedError
 
 MAX_ASSISTANT_STEPS_PER_TURN = 8

@@ -16,7 +16,7 @@ from pinser.runtime.events.models import (
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
-from pinser.runtime.tools import EditTool, GrepTool, ReadTool, ToolRegistry, WriteTool
+from pinser.runtime.tools import BashTool, EditTool, GrepTool, ReadTool, ToolRegistry, WriteTool
 
 
 @pytest.mark.asyncio
@@ -353,3 +353,92 @@ async def test_session_reports_tool_argument_errors_as_failures(tmp_path: Path) 
     assert events[4].reason == "Write tool requires a string content argument."
     assert isinstance(events[5], AssistantMessageEvent)
     assert events[5].message == "Error: Write tool requires a string content argument."
+
+
+@pytest.mark.asyncio
+async def test_session_runs_bash_tool_then_generates_assistant_reply(tmp_path: Path) -> None:
+    registry = ToolRegistry()
+    registry.register(BashTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Bash",
+                    arguments={"command": "printf 'workspace ok'"},
+                )
+            ),
+            AssistantStep(message="The shell command succeeded."),
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-6", workspace_root=tmp_path),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("run a shell check")]
+
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "run bash: printf 'workspace ok'"
+    assert isinstance(events[4], ToolCompletedEvent)
+    assert events[4].summary == "workspace ok"
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "The shell command succeeded."
+    assert model.prompts[1].messages[2].content == "workspace ok"
+
+
+@pytest.mark.asyncio
+async def test_session_denies_bash_tool_when_command_is_disallowed(tmp_path: Path) -> None:
+    registry = ToolRegistry()
+    registry.register(BashTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(tool_name="Bash", arguments={"command": "sudo ls"})
+            )
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-7", workspace_root=tmp_path),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("run a forbidden shell command")]
+
+    assert isinstance(events[3], ToolStartedEvent)
+    assert isinstance(events[4], ToolDeniedEvent)
+    assert events[4].reason == "Bash command sudo is denied by policy"
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "Denied: Bash command sudo is denied by policy"
+
+
+@pytest.mark.asyncio
+async def test_session_requires_approval_for_non_read_only_bash_command(tmp_path: Path) -> None:
+    registry = ToolRegistry()
+    registry.register(BashTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(tool_name="Bash", arguments={"command": "mkdir build"})
+            )
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-8", workspace_root=tmp_path),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("make a directory")]
+
+    assert isinstance(events[3], ToolStartedEvent)
+    assert isinstance(events[4], PermissionRequiredEvent)
+    assert events[4].summary == "run bash: mkdir build"
+    assert isinstance(events[5], ToolDeniedEvent)
+    assert events[5].reason == "approval-required action blocked by dontAsk mode."
+    assert isinstance(events[6], AssistantMessageEvent)
+    assert events[6].message == "Denied: approval-required action blocked by dontAsk mode."

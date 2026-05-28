@@ -1,5 +1,6 @@
 """Tool primitives for the Phase 2 runtime."""
 
+from pinser.runtime.tools.bash import BashPermissionProfile, BashTool
 from pinser.runtime.tools.edit import EditTool
 from pinser.runtime.tools.glob import GlobTool
 from pinser.runtime.tools.grep import GrepTool
@@ -15,6 +16,8 @@ from pinser.runtime.tools_errors import (
 )
 
 __all__ = [
+    "BashPermissionProfile",
+    "BashTool",
     "EditTool",
     "GlobTool",
     "GrepTool",
