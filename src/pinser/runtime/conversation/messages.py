@@ -19,4 +19,13 @@ class AssistantMessage:
     content: str
 
 
-type ConversationItem = UserMessage | AssistantMessage
+@dataclass(frozen=True, slots=True)
+class ToolResultMessage:
+    """Tool result stored explicitly for future prompt normalization work."""
+
+    tool_name: str
+    content: str
+    is_error: bool = False
+
+
+type ConversationItem = UserMessage | AssistantMessage | ToolResultMessage

@@ -8,7 +8,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pinser.runtime.context.prompt import PromptContext, build_prompt_context
-from pinser.runtime.conversation.messages import AssistantMessage, ConversationItem, UserMessage
+from pinser.runtime.conversation.messages import (
+    AssistantMessage,
+    ConversationItem,
+    ToolResultMessage,
+    UserMessage,
+)
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
@@ -93,7 +98,6 @@ class Session:
         """Execute one turn and stream ordered runtime events."""
 
         turn_state = self.prepare_turn(user_message)
-        pending_events: list[Event] = []
 
         yield TurnStartedEvent(
             session_id=self._state.session_id,
@@ -119,7 +123,9 @@ class Session:
             stage="generating",
         )
         step = await self._model.generate(turn_state.prompt_context)
-        final_message, pending_events = await self._handle_assistant_step(turn_state, step)
+        final_message, pending_events, tool_result = await self._handle_assistant_step(
+            turn_state, step
+        )
 
         if cancellation_event is not None and cancellation_event.is_set():
             yield TurnCancelledEvent(
@@ -137,12 +143,10 @@ class Session:
         )
 
         self._state.turn_count = turn_state.turn_id
-        self._state.transcript.extend(
-            (
-                UserMessage(content=turn_state.user_message),
-                AssistantMessage(content=final_message),
-            )
-        )
+        self._state.transcript.append(UserMessage(content=turn_state.user_message))
+        if tool_result is not None:
+            self._state.transcript.append(tool_result)
+        self._state.transcript.append(AssistantMessage(content=final_message))
         yield TurnCompletedEvent(
             session_id=self._state.session_id,
             turn_id=turn_state.turn_id,
@@ -150,9 +154,9 @@ class Session:
 
     async def _handle_assistant_step(
         self, turn_state: TurnState, step: AssistantStep
-    ) -> tuple[str, list[Event]]:
+    ) -> tuple[str, list[Event], ToolResultMessage | None]:
         if step.tool_call is None:
-            return step.message or "", []
+            return step.message or "", [], None
 
         invocation = ToolInvocation(
             tool_name=step.tool_call.tool_name,
@@ -160,7 +164,7 @@ class Session:
         )
         tool = self._tools.get(invocation.tool_name)
         if tool is None:
-            return f"Tool {invocation.tool_name} is not available.", []
+            return f"Tool {invocation.tool_name} is not available.", [], None
 
         permission_request = tool.build_permission_request(invocation)
         events: list[Event] = [
@@ -191,31 +195,52 @@ class Session:
                     ),
                 ]
             )
-            return "Denied: approval-required action blocked by dontAsk mode.", events
+            result_message = ToolResultMessage(
+                tool_name=invocation.tool_name,
+                content="approval-required action blocked by dontAsk mode.",
+                is_error=True,
+            )
+            return (
+                "Denied: approval-required action blocked by dontAsk mode.",
+                events,
+                result_message,
+            )
         if decision.kind is PermissionDecisionKind.DENY:
+            denial_reason = decision.reason or "tool invocation denied."
             events.append(
                 ToolDeniedEvent(
                     session_id=self._state.session_id,
                     turn_id=turn_state.turn_id,
                     tool_name=invocation.tool_name,
                     decision=PermissionDecisionKind.DENY,
-                    reason=decision.reason or "tool invocation denied.",
+                    reason=denial_reason,
                 )
             )
-            return f"Denied: {decision.reason or 'tool invocation denied.'}", events
+            result_message = ToolResultMessage(
+                tool_name=invocation.tool_name,
+                content=denial_reason,
+                is_error=True,
+            )
+            return f"Denied: {denial_reason}", events, result_message
 
         try:
             result = await tool.execute(invocation)
         except Exception as exc:
+            error_text = str(exc)
             events.append(
                 ToolFailedEvent(
                     session_id=self._state.session_id,
                     turn_id=turn_state.turn_id,
                     tool_name=invocation.tool_name,
-                    reason=str(exc),
+                    reason=error_text,
                 )
             )
-            return f"Error: {exc}", events
+            result_message = ToolResultMessage(
+                tool_name=invocation.tool_name,
+                content=error_text,
+                is_error=True,
+            )
+            return f"Error: {error_text}", events, result_message
 
         events.append(
             ToolCompletedEvent(
@@ -225,7 +250,12 @@ class Session:
                 summary=result.summary,
             )
         )
-        return self._render_tool_result_message(result), events
+        rendered_result = self._render_tool_result_message(result)
+        result_message = ToolResultMessage(
+            tool_name=invocation.tool_name,
+            content=rendered_result,
+        )
+        return rendered_result, events, result_message
 
     def _render_tool_result_message(self, result: ToolExecutionResult) -> str:
         content = result.output.get("content")

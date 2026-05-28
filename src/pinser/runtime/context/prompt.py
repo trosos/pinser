@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from pinser.runtime.conversation.messages import AssistantMessage, ConversationItem, UserMessage
+from pinser.runtime.conversation.messages import (
+    AssistantMessage,
+    ConversationItem,
+    ToolResultMessage,
+    UserMessage,
+)
 
 
 class SessionView(Protocol):
@@ -23,6 +28,7 @@ class PromptRole(StrEnum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
+    TOOL = "tool"
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +59,8 @@ def _prompt_message_for_item(item: ConversationItem) -> PromptMessage:
         return PromptMessage(role=PromptRole.USER, content=item.content)
     if isinstance(item, AssistantMessage):
         return PromptMessage(role=PromptRole.ASSISTANT, content=item.content)
+    if isinstance(item, ToolResultMessage):
+        return PromptMessage(role=PromptRole.TOOL, content=item.content)
     msg = f"Unsupported conversation item: {type(item)!r}"
     raise TypeError(msg)
 
