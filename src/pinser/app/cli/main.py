@@ -79,19 +79,17 @@ def run_turn_command(
 
 def _render_event(event: Event) -> str:
     if isinstance(event, TurnStartedEvent):
-        return f"turn-started turn_id={event.turn_id} user_message={event.user_message!r}"
+        return f"turn-started turn_id={event.turn_id} user={event.user_message}"
     if isinstance(event, UserMessageEvent):
-        return f"user-message turn_id={event.turn_id} content={event.message!r}"
+        return f"user: {event.message}"
     if isinstance(event, ProgressEvent):
-        return f"Progress: turn_id={event.turn_id} stage={event.stage}"
+        return f"Progress: {event.stage}"
     if isinstance(event, AssistantMessageEvent):
-        return f"assistant-message turn_id={event.turn_id} content={event.message!r}"
+        return f"assistant: {event.message}"
     if isinstance(event, TurnCompletedEvent):
         return f"turn-completed turn_id={event.turn_id}"
     if isinstance(event, TurnCancelledEvent):
-        return (
-            f"turn-cancelled turn_id={event.turn_id} reason={event.reason!r}"
-        )
+        return f"turn-cancelled turn_id={event.turn_id} reason={event.reason!r}"
     raise AssertionError("unreachable event type")
 
 

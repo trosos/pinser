@@ -110,7 +110,7 @@ Example output:
 ```text
 turn-started turn_id=1 user=hello
 user: hello
-progress: generating
+Progress: generating
 assistant: Echo: hello
 turn-completed turn_id=1
 ```

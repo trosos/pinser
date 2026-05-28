@@ -44,9 +44,9 @@ def test_run_turn_command_streams_runtime_events(tmp_path: Path) -> None:
     result = runner.invoke(app, ["run-turn", "hello", "--workspace", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "turn-started turn_id=1 user_message='hello'" in result.stdout
-    assert "user-message turn_id=1 content='hello'" in result.stdout
-    assert "Progress: turn_id=1 stage=generating" in result.stdout
-    assert "assistant-message turn_id=1 content='Echo: hello'" in result.stdout
+    assert "turn-started turn_id=1 user=hello" in result.stdout
+    assert "user: hello" in result.stdout
+    assert "Progress: generating" in result.stdout
+    assert "assistant: Echo: hello" in result.stdout
     assert "turn-completed turn_id=1" in result.stdout
 
