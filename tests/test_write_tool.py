@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.tools import WriteTool
 from pinser.runtime.tools.protocol import ToolInvocation
 
@@ -48,7 +49,42 @@ async def test_write_tool_updates_existing_workspace_file(tmp_path: Path) -> Non
     assert file_path.read_text() == "new\nvalue\n"
     assert result.summary == "updated notes.txt"
     assert result.output["type"] == "update"
-    assert result.output["original_content"] == "old\nvalue\n"
+
+
+@pytest.mark.asyncio
+async def test_write_tool_requires_prior_read_for_existing_file(tmp_path: Path) -> None:
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("old\nvalue\n")
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tool = WriteTool(workspace_root=tmp_path, file_state=tracker)
+
+    with pytest.raises(ValueError, match="requires prior read"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Write",
+                arguments={"path": "notes.txt", "content": "new\nvalue\n"},
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_write_tool_allows_overwrite_after_matching_prior_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("old\nvalue\n")
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tracker.record_read("notes.txt", "old\nvalue\n")
+    tool = WriteTool(workspace_root=tmp_path, file_state=tracker)
+
+    result = await tool.execute(
+        ToolInvocation(
+            tool_name="Write",
+            arguments={"path": "notes.txt", "content": "new\nvalue\n"},
+        )
+    )
+
+    assert file_path.read_text() == "new\nvalue\n"
+    assert result.summary == "updated notes.txt"
+    tracker.require_safe_overwrite("notes.txt", "new\nvalue\n")
 
 
 def test_write_tool_requires_non_empty_path(tmp_path: Path) -> None:

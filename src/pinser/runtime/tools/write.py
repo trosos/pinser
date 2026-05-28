@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from difflib import unified_diff
 from pathlib import Path
 
+from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.permissions import (
     PermissionDecision,
     PermissionDecisionKind,
@@ -20,6 +21,7 @@ class WriteTool:
     """Create or replace a workspace file with exact caller-provided content."""
 
     workspace_root: Path
+    file_state: FileStateTracker | None = None
     name: str = "Write"
 
     def build_permission_request(self, invocation: ToolInvocation) -> PermissionRequest:
@@ -53,8 +55,12 @@ class WriteTool:
         resolved = safety.resolve(path)
         target = resolved.expanded
         original_content = target.read_text() if target.exists() else None
+        if original_content is not None and self.file_state is not None:
+            self.file_state.require_safe_overwrite(path, original_content)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
+        if self.file_state is not None:
+            self.file_state.record_write(path, content)
         write_type = "update" if original_content is not None else "create"
         display_path = resolved.workspace_relative or resolved.expanded.as_posix()
         return ToolExecutionResult(
