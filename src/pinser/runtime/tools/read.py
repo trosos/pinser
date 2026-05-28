@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.permissions import (
     PermissionDecision,
     PermissionDecisionKind,
@@ -19,6 +20,7 @@ class ReadTool:
     """Minimal read-only file tool backed by shared path safety checks."""
 
     workspace_root: Path
+    file_state: FileStateTracker | None = None
     name: str = "Read"
 
     def build_permission_request(self, invocation: ToolInvocation) -> PermissionRequest:
@@ -50,10 +52,13 @@ class ReadTool:
         safety = PathSafety(self.workspace_root)
         resolved = safety.resolve(path)
         content = resolved.expanded.read_text()
+        display_path = resolved.workspace_relative or resolved.expanded.as_posix()
+        if self.file_state is not None:
+            self.file_state.record_read(display_path, content)
         return ToolExecutionResult(
-            summary=f"read {resolved.workspace_relative or resolved.expanded.as_posix()}",
+            summary=f"read {display_path}",
             output={
-                "path": resolved.workspace_relative or resolved.expanded.as_posix(),
+                "path": display_path,
                 "content": content,
             },
         )

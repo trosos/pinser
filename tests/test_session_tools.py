@@ -11,10 +11,11 @@ from pinser.runtime.events.models import (
     ProgressEvent,
     ToolCompletedEvent,
     ToolDeniedEvent,
+    ToolFailedEvent,
     ToolStartedEvent,
 )
 from pinser.runtime.model.messages import AssistantStep, ToolCall
-from pinser.runtime.tools import GrepTool, ReadTool, ToolRegistry
+from pinser.runtime.tools import GrepTool, ReadTool, ToolRegistry, WriteTool
 
 
 @pytest.mark.asyncio
@@ -31,7 +32,7 @@ async def test_session_runs_read_tool_then_generates_assistant_reply(tmp_path: P
         ]
     )
     session = Session(
-        SessionState(session_id="session-1"),
+        SessionState(session_id="session-1", workspace_root=tmp_path),
         model,
         workspace_root=tmp_path,
         tools=registry,
@@ -74,7 +75,7 @@ async def test_session_denies_read_tool_when_path_needs_approval(tmp_path: Path)
         ]
     )
     session = Session(
-        SessionState(session_id="session-1"),
+        SessionState(session_id="session-1", workspace_root=tmp_path),
         model,
         workspace_root=tmp_path,
         tools=registry,
@@ -105,7 +106,7 @@ async def test_session_stops_after_maximum_assistant_tool_steps(tmp_path: Path) 
         ]
     )
     session = Session(
-        SessionState(session_id="session-1"),
+        SessionState(session_id="session-1", workspace_root=tmp_path),
         model,
         workspace_root=tmp_path,
         tools=registry,
@@ -139,7 +140,7 @@ async def test_session_runs_grep_tool_then_generates_assistant_reply(tmp_path: P
         ]
     )
     session = Session(
-        SessionState(session_id="session-1"),
+        SessionState(session_id="session-1", workspace_root=tmp_path),
         model,
         workspace_root=tmp_path,
         tools=registry,
@@ -164,3 +165,71 @@ async def test_session_runs_grep_tool_then_generates_assistant_reply(tmp_path: P
     ]
     assert model.prompts[1].messages[2].content == "matched 2 line(s)"
 
+
+@pytest.mark.asyncio
+async def test_session_allows_write_after_runtime_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("old\nvalue\n")
+
+    state = SessionState(session_id="session-1", workspace_root=tmp_path)
+    registry = ToolRegistry()
+    registry.register(ReadTool(workspace_root=tmp_path, file_state=state.file_state))
+    registry.register(WriteTool(workspace_root=tmp_path, file_state=state.file_state))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"})),
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Write",
+                    arguments={"path": "note.txt", "content": "new\nvalue\n"},
+                )
+            ),
+            AssistantStep(message="Updated the note."),
+        ]
+    )
+    session = Session(state, model, workspace_root=tmp_path, tools=registry)
+
+    events = [event async for event in session.run_turn("read and update the note")]
+
+    assert file_path.read_text() == "new\nvalue\n"
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "read note.txt"
+    assert isinstance(events[4], ToolCompletedEvent)
+    assert events[4].summary == "read note.txt"
+    assert isinstance(events[5], ToolStartedEvent)
+    assert events[5].summary == "write note.txt"
+    assert isinstance(events[6], ToolCompletedEvent)
+    assert events[6].summary == "updated note.txt"
+    assert isinstance(events[7], AssistantMessageEvent)
+    assert events[7].message == "Updated the note."
+
+
+@pytest.mark.asyncio
+async def test_session_rejects_write_without_runtime_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "note.txt"
+    file_path.write_text("old\nvalue\n")
+
+    state = SessionState(session_id="session-2", workspace_root=tmp_path)
+    registry = ToolRegistry()
+    registry.register(WriteTool(workspace_root=tmp_path, file_state=state.file_state))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Write",
+                    arguments={"path": "note.txt", "content": "new\nvalue\n"},
+                )
+            )
+        ]
+    )
+    session = Session(state, model, workspace_root=tmp_path, tools=registry)
+
+    events = [event async for event in session.run_turn("update the note")]
+
+    assert file_path.read_text() == "old\nvalue\n"
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "write note.txt"
+    assert isinstance(events[4], ToolFailedEvent)
+    assert events[4].reason == "write requires prior read for existing file"
+    assert isinstance(events[5], AssistantMessageEvent)
+    assert events[5].message == "Error: write requires prior read for existing file"

@@ -14,6 +14,7 @@ from pinser.runtime.conversation.messages import (
     ToolResultMessage,
     UserMessage,
 )
+from pinser.runtime.engine.file_state import FileStateTracker
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
@@ -50,8 +51,15 @@ class SessionState:
     """Conversation state that persists across turns in memory."""
 
     session_id: str
+    workspace_root: Path | None = None
     turn_count: int = 0
     transcript: list[ConversationItem] = field(default_factory=list)
+    file_state: FileStateTracker = field(init=False)
+
+    def __post_init__(self) -> None:
+        root = (self.workspace_root or Path.cwd()).resolve()
+        self.workspace_root = root
+        self.file_state = FileStateTracker(workspace_root=root)
 
 
 class Session:
@@ -67,7 +75,10 @@ class Session:
     ) -> None:
         self._state = state
         self._model = model
-        self._workspace_root = (workspace_root or Path.cwd()).resolve()
+        self._workspace_root = (workspace_root or state.workspace_root or Path.cwd()).resolve()
+        if self._state.workspace_root != self._workspace_root:
+            self._state.workspace_root = self._workspace_root
+            self._state.file_state = FileStateTracker(workspace_root=self._workspace_root)
         self._tools = tools or ToolRegistry()
 
     @property
