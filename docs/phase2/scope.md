@@ -12,6 +12,19 @@ It complements, and does not replace:
 
 The large architecture documents remain the normative compatibility references. This file exists to make Phase 2 execution small enough, explicit enough, and consistent enough to implement without re-deciding scope in every PR.
 
+## Implementation-shaping note
+
+Phase 2 should stay narrow in scope, but should not paint the implementation into a corner.
+
+Even in a conservative first Phase 2 slice, the implementation should preserve extension points for:
+
+- tool-specific permission hooks
+- structured permission decisions such as `allow`, `ask`, and `deny`, while leaving room for an internal `passthrough`-style result later if needed
+- event categories that can later support transcript persistence and recovery work
+- future additional permission modes, even if only `default` and `dontAsk` are active in the first Phase 2 implementation
+
+The goal is to keep Phase 2 reviewable and safety-first without prematurely collapsing interfaces that later phases are expected to extend.
+
 ## Purpose
 
 Phase 2 should make Pinser useful as a local coding assistant while keeping the implementation narrow enough to review and verify.
@@ -188,7 +201,7 @@ This keeps Phase 2 aligned with the roadmap distinction between core local tools
 
 The following follow-up tasks should be tracked during or immediately after Phase 2 implementation. They do **not** require changing the large architecture documents unless future understanding changes.
 
-### Architecture task: local Phase 2 tool/runtime implementation note
+### Architecture note task: Phase 2 tool/runtime implementation note
 
 Add a short implementation note under `docs/phase2/` documenting:
 
@@ -196,8 +209,11 @@ Add a short implementation note under `docs/phase2/` documenting:
 - permission-check hook shape
 - event emission expectations for tool execution
 - how tool results attach to the existing Phase 1 event model
+- the expected Phase 2 turn shape for tool-using turns, including the model -> permission check -> tool execution -> tool result -> continued model response flow
 
 This should be a small local document. It does **not** require editing the large architecture reference docs.
+
+The broader architecture already discusses turns, tool results, retries, and recovery in several places, but extracting the Phase 2 turn shape into one local implementation note should reduce ambiguity for contributors landing the first tool loop.
 
 Suggested landing point:
 
@@ -317,17 +333,18 @@ The following items are intentionally excluded from Phase 2 and should be picked
 
 A sensible execution plan for Phase 2 is:
 
-1. **Define tool/runtime integration locally**
+1. **Define local implementation notes and runtime integration shape**
    - add the short `docs/phase2/` implementation note
+   - document the expected Phase 2 turn shape for tool-using turns
    - implement the Python tool interface and runtime hook points
 
-2. **Land safe read-only tooling first**
+2. **Define CLI/runtime presentation expectations early**
+   - add the small CLI-output note under `docs/phase2/`
+   - make tool-running, permission, denial, and file-safety output expectations explicit before they spread informally
+
+3. **Land safe read-only tooling first**
    - implement `Read`, `Glob`, and `Grep`
    - establish path validation and workspace-scope checks
-
-3. **Land mutation tooling with file safety invariants**
-   - implement `Edit` and `FileWrite`
-   - enforce full-read and stale-read protections
 
 4. **Land the initial permission engine slice**
    - implement allow/deny/ask
@@ -335,12 +352,15 @@ A sensible execution plan for Phase 2 is:
    - add `dontAsk`
    - keep unresolved cases conservative
 
-5. **Land Bash foreground execution**
+5. **Land mutation tooling with file safety invariants**
+   - implement `Edit` and `FileWrite`
+   - enforce full-read and stale-read protections
+
+6. **Land Bash foreground execution**
    - implement the Bash tool with permission gating and a conservative safety subset
    - verify clear failure behavior for denied and approval-required commands
 
-6. **Stabilize CLI/runtime presentation and tests**
-   - add the small CLI-output note under `docs/phase2/`
+7. **Stabilize integration tests and close documentation gaps**
    - add integration tests covering file and Bash workflows through the event stream
    - add the omitted-functionality note before declaring Phase 2 complete
 
