@@ -13,7 +13,12 @@ from pinser.runtime.engine import Runtime
 from pinser.runtime.events.models import (
     AssistantMessageEvent,
     Event,
+    PermissionRequiredEvent,
     ProgressEvent,
+    ToolCompletedEvent,
+    ToolDeniedEvent,
+    ToolFailedEvent,
+    ToolStartedEvent,
     TurnCancelledEvent,
     TurnCompletedEvent,
     TurnStartedEvent,
@@ -84,6 +89,16 @@ def _render_event(event: Event) -> str:
         return f"user: {event.message}"
     if isinstance(event, ProgressEvent):
         return f"Progress: {event.stage}"
+    if isinstance(event, ToolStartedEvent):
+        return f"tool-started tool={event.tool_name} summary={event.summary}"
+    if isinstance(event, ToolCompletedEvent):
+        return f"tool-completed tool={event.tool_name} summary={event.summary}"
+    if isinstance(event, PermissionRequiredEvent):
+        return f"Permission required: {event.summary}"
+    if isinstance(event, ToolDeniedEvent):
+        return f"Denied: {event.reason}"
+    if isinstance(event, ToolFailedEvent):
+        return f"Error: {event.reason}"
     if isinstance(event, AssistantMessageEvent):
         return f"assistant: {event.message}"
     if isinstance(event, TurnCompletedEvent):

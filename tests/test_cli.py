@@ -2,7 +2,15 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from pinser.app.cli.main import app
+from pinser.app.cli.main import _render_event, app
+from pinser.runtime.events.models import (
+    PermissionRequiredEvent,
+    ToolCompletedEvent,
+    ToolDeniedEvent,
+    ToolFailedEvent,
+    ToolStartedEvent,
+)
+from pinser.runtime.permissions import PermissionDecisionKind
 
 runner = CliRunner()
 
@@ -49,4 +57,63 @@ def test_run_turn_command_streams_runtime_events(tmp_path: Path) -> None:
     assert "Progress: generating" in result.stdout
     assert "assistant: Echo: hello" in result.stdout
     assert "turn-completed turn_id=1" in result.stdout
+
+
+def test_render_event_formats_phase_2_tool_events() -> None:
+    assert (
+        _render_event(
+            ToolStartedEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Read",
+                summary="path=/workspace/file.txt",
+            )
+        )
+        == "tool-started tool=Read summary=path=/workspace/file.txt"
+    )
+    assert (
+        _render_event(
+            ToolCompletedEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Read",
+                summary="path=/workspace/file.txt",
+            )
+        )
+        == "tool-completed tool=Read summary=path=/workspace/file.txt"
+    )
+    assert (
+        _render_event(
+            PermissionRequiredEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Bash",
+                summary="run Bash command in workspace.",
+            )
+        )
+        == "Permission required: run Bash command in workspace."
+    )
+    assert (
+        _render_event(
+            ToolDeniedEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Bash",
+                decision=PermissionDecisionKind.DENY,
+                reason="approval-required action blocked by dontAsk mode.",
+            )
+        )
+        == "Denied: approval-required action blocked by dontAsk mode."
+    )
+    assert (
+        _render_event(
+            ToolFailedEvent(
+                session_id="session-1",
+                turn_id=1,
+                tool_name="Bash",
+                reason="command exited with status 1.",
+            )
+        )
+        == "Error: command exited with status 1."
+    )
 

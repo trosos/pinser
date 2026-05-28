@@ -1,9 +1,11 @@
-"""Typed runtime events for Phase 1."""
+"""Typed runtime events for Phase 2."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+
+from pinser.runtime.permissions import PermissionDecisionKind
 
 
 class EventType(StrEnum):
@@ -12,6 +14,11 @@ class EventType(StrEnum):
     TURN_STARTED = "turn_started"
     USER_MESSAGE = "user_message"
     PROGRESS = "progress"
+    TOOL_STARTED = "tool_started"
+    TOOL_COMPLETED = "tool_completed"
+    PERMISSION_REQUIRED = "permission_required"
+    TOOL_DENIED = "tool_denied"
+    TOOL_FAILED = "tool_failed"
     ASSISTANT_MESSAGE = "assistant_message"
     TURN_COMPLETED = "turn_completed"
     TURN_CANCELLED = "turn_cancelled"
@@ -48,6 +55,63 @@ class ProgressEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolStartedEvent:
+    """Signals that a tool invocation has started."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    summary: str
+    event_type: EventType = EventType.TOOL_STARTED
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCompletedEvent:
+    """Signals that a tool invocation completed successfully."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    summary: str
+    event_type: EventType = EventType.TOOL_COMPLETED
+
+
+@dataclass(frozen=True, slots=True)
+class PermissionRequiredEvent:
+    """Signals that a tool action requires user approval."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    summary: str
+    resource: str | None = None
+    event_type: EventType = EventType.PERMISSION_REQUIRED
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDeniedEvent:
+    """Signals that a tool action was denied by permission policy."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    decision: PermissionDecisionKind
+    reason: str
+    event_type: EventType = EventType.TOOL_DENIED
+
+
+@dataclass(frozen=True, slots=True)
+class ToolFailedEvent:
+    """Signals that a tool action failed after attempting execution."""
+
+    session_id: str
+    turn_id: int
+    tool_name: str
+    reason: str
+    event_type: EventType = EventType.TOOL_FAILED
+
+
+@dataclass(frozen=True, slots=True)
 class AssistantMessageEvent:
     """Represents assistant output produced during a turn."""
 
@@ -80,6 +144,11 @@ type Event = (
     TurnStartedEvent
     | UserMessageEvent
     | ProgressEvent
+    | ToolStartedEvent
+    | ToolCompletedEvent
+    | PermissionRequiredEvent
+    | ToolDeniedEvent
+    | ToolFailedEvent
     | AssistantMessageEvent
     | TurnCompletedEvent
     | TurnCancelledEvent
