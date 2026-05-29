@@ -1,3 +1,5 @@
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -117,3 +119,95 @@ async def test_bash_tool_reports_nonzero_exit_for_allowed_read_only_command(
                 arguments={"command": "grep missing does-not-exist.txt"},
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_bash_tool_reduces_environment_inheritance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PINSER_BASH_SECRET", "top-secret")
+    monkeypatch.setenv("LANG", "C.UTF-8")
+    tool = BashTool(
+        workspace_root=tmp_path,
+        permission_profile=BashPermissionProfile(auto_allow_read_only=False),
+        allow_unsafe_testing_commands=True,
+    )
+
+    result = await tool.execute(
+        ToolInvocation(
+            tool_name="Bash",
+            arguments={
+                "command": (
+                    f"{sys.executable} -c \"import os; "
+                    "print(os.getenv('PINSER_BASH_SECRET', 'missing')); "
+                    "print(os.getenv('LANG', 'missing'))\""
+                )
+            },
+        )
+    )
+
+    assert result.output["stdout"] == "missing\nC.UTF-8\n"
+
+
+@pytest.mark.asyncio
+async def test_bash_tool_truncates_large_stdout(tmp_path: Path) -> None:
+    tool = BashTool(
+        workspace_root=tmp_path,
+        permission_profile=BashPermissionProfile(auto_allow_read_only=False),
+        allow_unsafe_testing_commands=True,
+    )
+
+    result = await tool.execute(
+        ToolInvocation(
+            tool_name="Bash",
+            arguments={"command": f"{sys.executable} -c \"print('x' * 20000, end='')\""},
+        )
+    )
+
+    assert len(result.output["stdout"]) == 16 * 1024
+    assert result.output["stdout_truncated"] is True
+    assert result.output["stderr_truncated"] is False
+    assert "[output truncated to 16384 bytes per stream]" in result.output["content"]
+
+
+@pytest.mark.asyncio
+async def test_bash_tool_kills_process_group_on_timeout(tmp_path: Path) -> None:
+    marker = tmp_path / "timeout-child-marker.txt"
+    child_script = tmp_path / "child_timeout_writer.py"
+    child_script.write_text(
+        "import pathlib\n"
+        "import sys\n"
+        "import time\n"
+        "marker = pathlib.Path(sys.argv[1])\n"
+        "marker.write_text('started')\n"
+        "time.sleep(5)\n",
+        encoding="utf-8",
+    )
+    tool = BashTool(
+        workspace_root=tmp_path,
+        permission_profile=BashPermissionProfile(auto_allow_read_only=False),
+        allow_unsafe_testing_commands=True,
+    )
+
+    command = (
+        f"{sys.executable} -c \"import subprocess, sys, time; "
+        f"subprocess.Popen([sys.executable, r'{child_script}', r'{marker}']); "
+        "time.sleep(5)\""
+    )
+
+    with pytest.raises(ToolExecutionError, match=r"command timed out after 0\.2 seconds"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Bash",
+                arguments={"command": command, "timeout": 0.2},
+            )
+        )
+
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline and not marker.exists():
+        time.sleep(0.05)
+    assert marker.exists()
+
+    marker_mtime = marker.stat().st_mtime
+    time.sleep(0.5)
+    assert marker.stat().st_mtime == marker_mtime

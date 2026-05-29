@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import os
 import shlex
+import signal
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -88,6 +91,9 @@ _GIT_WRITE_SUBCOMMANDS = frozenset(
         "tag",
     }
 )
+_BASH_OUTPUT_LIMIT = 16 * 1024
+_BASH_ENV_ALLOWLIST = frozenset({"HOME", "LANG", "LC_ALL", "PATH", "PWD", "TERM", "TMPDIR"})
+_TIMEOUT_KILL_GRACE_SECONDS = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +122,7 @@ class BashTool:
 
     workspace_root: Path
     permission_profile: BashPermissionProfile = field(default_factory=BashPermissionProfile)
+    allow_unsafe_testing_commands: bool = False
     name: str = "Bash"
 
     def build_permission_request(self, invocation: ToolInvocation) -> PermissionRequest:
@@ -143,6 +150,13 @@ class BashTool:
             raise ToolExecutionError(msg)
 
         analysis = self._analyze(invocation)
+        if self.allow_unsafe_testing_commands:
+            analysis = BashAnalysis(
+                summary=analysis.summary,
+                program=analysis.program,
+                decision=PermissionDecision(kind=PermissionDecisionKind.ALLOW),
+                is_read_only=analysis.is_read_only,
+            )
         if analysis.decision.kind is PermissionDecisionKind.DENY:
             msg = analysis.decision.reason or "bash command denied"
             raise ToolExecutionError(msg)
@@ -155,21 +169,22 @@ class BashTool:
             "-lc",
             command,
             cwd=self.workspace_root,
+            env=self._build_environment(),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
         )
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
                 process.communicate(), timeout=timeout
             )
         except TimeoutError as exc:
-            process.kill()
-            await process.communicate()
+            await self._terminate_process_group(process)
             msg = f"command timed out after {timeout} seconds"
             raise ToolExecutionError(msg) from exc
 
-        stdout = stdout_bytes.decode()
-        stderr = stderr_bytes.decode()
+        stdout, stdout_truncated = self._decode_output(stdout_bytes)
+        stderr, stderr_truncated = self._decode_output(stderr_bytes)
         if process.returncode != 0:
             msg = f"command exited with status {process.returncode}"
             if stderr.strip():
@@ -181,6 +196,9 @@ class BashTool:
             or stderr.strip()
             or f"command completed: {analysis.program}"
         )
+        content = stdout.strip() or stderr.strip() or result_summary
+        if stdout_truncated or stderr_truncated:
+            content = f"{content}\n\n[output truncated to {_BASH_OUTPUT_LIMIT} bytes per stream]"
         return ToolExecutionResult(
             summary=result_summary,
             output={
@@ -188,8 +206,10 @@ class BashTool:
                 "stdout": stdout,
                 "stderr": stderr,
                 "returncode": process.returncode,
-                "content": stdout.strip() or stderr.strip() or result_summary,
+                "content": content,
                 "read_only": analysis.is_read_only,
+                "stdout_truncated": stdout_truncated,
+                "stderr_truncated": stderr_truncated,
             },
         )
 
@@ -308,6 +328,38 @@ class BashTool:
         if any(token in _WRITE_COMMANDS for token in tokens[1:]):
             return False
         return True
+
+    def _build_environment(self) -> dict[str, str]:
+        environment: dict[str, str] = {}
+        for name in _BASH_ENV_ALLOWLIST:
+            value = os.environ.get(name)
+            if value is not None:
+                environment[name] = value
+        environment["PWD"] = str(self.workspace_root)
+        environment.setdefault("PATH", os.defpath)
+        return environment
+
+    @staticmethod
+    def _decode_output(data: bytes) -> tuple[str, bool]:
+        truncated = len(data) > _BASH_OUTPUT_LIMIT
+        limited = data[:_BASH_OUTPUT_LIMIT]
+        return limited.decode(errors="replace"), truncated
+
+    async def _terminate_process_group(
+        self, process: asyncio.subprocess.Process
+    ) -> None:
+        if process.returncode is not None:
+            return
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        try:
+            await asyncio.wait_for(process.communicate(), timeout=_TIMEOUT_KILL_GRACE_SECONDS)
+            return
+        except TimeoutError:
+            pass
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        await process.communicate()
 
     @staticmethod
     def _split_command(command: str) -> list[str]:
