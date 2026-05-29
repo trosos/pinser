@@ -15,6 +15,8 @@ from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
 from pinser.runtime.tools_errors import ToolArgumentError
 
+MAX_GREP_MATCHES = 50
+
 
 @dataclass(frozen=True, slots=True)
 class GrepTool:
@@ -38,26 +40,32 @@ class GrepTool:
         pattern = self._require_pattern(invocation)
         regex = re.compile(pattern)
         glob = self._optional_glob(invocation)
-        matches = self._collect_matches(regex, glob)
+        matches, total_matches = self._collect_matches(regex, glob)
+        truncated = total_matches > len(matches)
+        summary = f"matched {total_matches} line(s)"
+        if truncated:
+            summary = f"matched {total_matches} line(s), returning first {len(matches)}"
         return ToolExecutionResult(
-            summary=f"matched {len(matches)} line(s)",
+            summary=summary,
             output={
                 "pattern": pattern,
                 "glob": glob,
                 "matches": matches,
+                "truncated": truncated,
+                "total_matches": total_matches,
             },
         )
 
     def _collect_matches(
         self, regex: re.Pattern[str], glob: str | None
-    ) -> list[dict[str, str | int]]:
+    ) -> tuple[list[dict[str, str | int]], int]:
         safety = PathSafety(self.workspace_root)
         candidates = (
             self.workspace_root.rglob("*")
             if glob is None
             else self.workspace_root.glob(glob)
         )
-        matches: list[dict[str, str | int]] = []
+        all_matches: list[dict[str, str | int]] = []
         for candidate in sorted(candidates):
             if not candidate.is_file():
                 continue
@@ -75,14 +83,14 @@ class GrepTool:
             for line_number, line in enumerate(lines, start=1):
                 if regex.search(line) is None:
                     continue
-                matches.append(
+                all_matches.append(
                     {
                         "path": workspace_relative,
                         "line_number": line_number,
                         "line": line,
                     }
                 )
-        return matches
+        return all_matches[:MAX_GREP_MATCHES], len(all_matches)
 
     @staticmethod
     def _require_pattern(invocation: ToolInvocation) -> str:

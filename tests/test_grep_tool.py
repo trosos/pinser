@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from pinser.runtime.tools import GrepTool, ToolArgumentError
+from pinser.runtime.tools.grep import MAX_GREP_MATCHES
 from pinser.runtime.tools.protocol import ToolInvocation
 
 
@@ -30,6 +31,8 @@ async def test_grep_tool_returns_workspace_relative_matches_with_line_info(
             {"path": "a.txt", "line_number": 2, "line": "TODO one"},
             {"path": "nested/b.txt", "line_number": 1, "line": "TODO two"},
         ],
+        "truncated": False,
+        "total_matches": 2,
     }
 
 
@@ -51,8 +54,8 @@ async def test_grep_tool_rejects_empty_glob_when_provided(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_grep_tool_reports_all_matches_without_budget_truncation(tmp_path: Path) -> None:
-    for index in range(80):
+async def test_grep_tool_truncates_matches_to_budget(tmp_path: Path) -> None:
+    for index in range(MAX_GREP_MATCHES + 30):
         (tmp_path / f"file-{index:02d}.txt").write_text(f"TODO {index}\n")
 
     tool = GrepTool(workspace_root=tmp_path)
@@ -61,5 +64,9 @@ async def test_grep_tool_reports_all_matches_without_budget_truncation(tmp_path:
         ToolInvocation(tool_name="Grep", arguments={"pattern": "TODO", "glob": "*.txt"})
     )
 
-    assert len(result.output["matches"]) == 80
-    assert result.summary == "matched 80 line(s)"
+    assert len(result.output["matches"]) == MAX_GREP_MATCHES
+    assert result.output["truncated"] is True
+    assert result.output["total_matches"] == MAX_GREP_MATCHES + 30
+    assert result.summary == (
+        f"matched {MAX_GREP_MATCHES + 30} line(s), returning first {MAX_GREP_MATCHES}"
+    )

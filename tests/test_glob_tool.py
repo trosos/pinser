@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from pinser.runtime.tools import GlobTool, ToolArgumentError
+from pinser.runtime.tools.glob import MAX_GLOB_MATCHES
 from pinser.runtime.tools.protocol import ToolInvocation
 
 
@@ -22,6 +23,8 @@ async def test_glob_tool_returns_workspace_relative_matches(tmp_path: Path) -> N
     assert result.output == {
         "pattern": "**/*.txt",
         "matches": ["a.txt", "nested/b.txt"],
+        "truncated": False,
+        "total_matches": 2,
     }
 
 
@@ -33,13 +36,17 @@ def test_glob_tool_requires_non_empty_pattern(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_glob_tool_reports_all_matches_without_budget_truncation(tmp_path: Path) -> None:
-    for index in range(60):
+async def test_glob_tool_truncates_matches_to_budget(tmp_path: Path) -> None:
+    for index in range(MAX_GLOB_MATCHES + 10):
         (tmp_path / f"file-{index:02d}.txt").write_text(str(index))
 
     tool = GlobTool(workspace_root=tmp_path)
 
     result = await tool.execute(ToolInvocation(tool_name="Glob", arguments={"pattern": "*.txt"}))
 
-    assert len(result.output["matches"]) == 60
-    assert result.summary == "matched 60 path(s)"
+    assert len(result.output["matches"]) == MAX_GLOB_MATCHES
+    assert result.output["truncated"] is True
+    assert result.output["total_matches"] == MAX_GLOB_MATCHES + 10
+    assert result.summary == (
+        f"matched {MAX_GLOB_MATCHES + 10} path(s), returning first {MAX_GLOB_MATCHES}"
+    )
