@@ -239,6 +239,12 @@ Phase 2.1 is complete when all of the following are true:
 
 Phase 2.1 deliberately lands only the narrow hardening needed to make the local tools layer a safer base for subsequent phases.
 
+Rule of thumb:
+
+- Phase 2.1 owns the minimum hardening needed to make current local-tool execution safer and bounded in the in-memory runtime.
+- Phase 3 owns durable transcript/session structure, resume semantics, and recovery-oriented state boundaries.
+- Phase 4 owns broader runtime- and transcript-scale result shaping, budgeting, retries, and day-to-day robustness.
+
 In particular:
 
 - the prompt-facing tool-output framing landed here is a runtime hardening measure, not yet the final persisted transcript model
