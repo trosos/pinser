@@ -1,3 +1,5 @@
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -181,6 +183,58 @@ async def test_edit_tool_blocks_partial_read_observations(tmp_path: Path) -> Non
                     "path": "note.txt",
                     "old_string": "beta",
                     "new_string": "gamma",
+                },
+            )
+        )
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo unavailable on this platform")
+@pytest.mark.asyncio
+async def test_read_tool_rejects_fifo_targets(tmp_path: Path) -> None:
+    fifo_path = tmp_path / "stream.pipe"
+    os.mkfifo(fifo_path)
+    assert stat.S_ISFIFO(fifo_path.stat().st_mode)
+    tool = ReadTool(workspace_root=tmp_path)
+
+    with pytest.raises(OSError, match="not a regular file"):
+        await tool.execute(ToolInvocation(tool_name="Read", arguments={"path": "stream.pipe"}))
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo unavailable on this platform")
+@pytest.mark.asyncio
+async def test_write_tool_rejects_fifo_targets(tmp_path: Path) -> None:
+    fifo_path = tmp_path / "stream.pipe"
+    os.mkfifo(fifo_path)
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tracker.record_read("stream.pipe", "")
+    tool = WriteTool(workspace_root=tmp_path, file_state=tracker)
+
+    with pytest.raises(OSError, match="not a regular file"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Write",
+                arguments={"path": "stream.pipe", "content": "hello"},
+            )
+        )
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo unavailable on this platform")
+@pytest.mark.asyncio
+async def test_edit_tool_rejects_fifo_targets(tmp_path: Path) -> None:
+    fifo_path = tmp_path / "stream.pipe"
+    os.mkfifo(fifo_path)
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tracker.record_read("stream.pipe", "")
+    tool = EditTool(workspace_root=tmp_path, file_state=tracker)
+
+    with pytest.raises(OSError, match="not a regular file"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Edit",
+                arguments={
+                    "path": "stream.pipe",
+                    "old_string": "a",
+                    "new_string": "b",
                 },
             )
         )
