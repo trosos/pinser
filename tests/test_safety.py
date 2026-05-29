@@ -1,6 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from pinser.runtime import PathSafety
+from pinser.runtime.tools import EditTool, ReadTool, WriteTool
+from pinser.runtime.tools.protocol import ToolInvocation
 
 
 def test_path_safety_resolves_relative_paths_inside_workspace(tmp_path: Path) -> None:
@@ -40,3 +44,40 @@ def test_path_safety_blocks_known_special_read_paths(tmp_path: Path) -> None:
 
     assert not decision.allowed
     assert decision.reason == "blocked-special-file"
+
+
+@pytest.mark.asyncio
+async def test_read_tool_rejects_directory_targets(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    tool = ReadTool(workspace_root=tmp_path)
+
+    with pytest.raises(IsADirectoryError, match="not a regular file"):
+        await tool.execute(ToolInvocation(tool_name="Read", arguments={"path": "docs"}))
+
+
+@pytest.mark.asyncio
+async def test_write_tool_rejects_directory_targets(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    tool = WriteTool(workspace_root=tmp_path)
+
+    with pytest.raises(IsADirectoryError, match="not a regular file"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Write",
+                arguments={"path": "docs", "content": "hello"},
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_edit_tool_rejects_directory_targets(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    tool = EditTool(workspace_root=tmp_path)
+
+    with pytest.raises(IsADirectoryError, match="not a regular file"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Edit",
+                arguments={"path": "docs", "old_string": "a", "new_string": "b"},
+            )
+        )

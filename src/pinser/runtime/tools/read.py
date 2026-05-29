@@ -51,7 +51,7 @@ class ReadTool:
     async def execute(self, invocation: ToolInvocation) -> ToolExecutionResult:
         path = self._require_path(invocation)
         safety = PathSafety(self.workspace_root)
-        resolved = safety.resolve(path)
+        resolved = safety.require_regular_file_read(path)
         content = resolved.expanded.read_text()
         display_path = resolved.workspace_relative or resolved.expanded.as_posix()
         if self.file_state is not None:

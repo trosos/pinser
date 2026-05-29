@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -55,10 +56,7 @@ class PathSafety:
         return self._workspace_root
 
     def resolve(self, raw_path: str) -> ResolvedPath:
-        expanded = Path(raw_path).expanduser()
-        if not expanded.is_absolute():
-            expanded = (self._workspace_root / expanded).resolve(strict=False)
-
+        expanded = self._expand_path(raw_path)
         comparison_path = self._comparison_path(expanded)
         workspace_relative = self._workspace_relative(expanded)
         return ResolvedPath(
@@ -69,8 +67,6 @@ class PathSafety:
         )
 
     def check_read_path(self, raw_path: str) -> PathSafetyDecision:
-        resolved = self.resolve(raw_path)
-
         if self._looks_like_network_path(raw_path):
             return PathSafetyDecision(
                 allowed=False,
@@ -78,17 +74,14 @@ class PathSafety:
                 requires_approval=True,
             )
 
+        resolved = self.resolve(raw_path)
         if resolved.comparison_path in _BLOCKED_READ_PATHS:
             return PathSafetyDecision(allowed=False, reason="blocked-special-file")
-
         if resolved.workspace_relative is None:
             return PathSafetyDecision(allowed=False, reason="path-outside-workspace")
-
         return PathSafetyDecision(allowed=True)
 
     def check_write_path(self, raw_path: str) -> PathSafetyDecision:
-        resolved = self.resolve(raw_path)
-
         if self._looks_like_network_path(raw_path):
             return PathSafetyDecision(
                 allowed=False,
@@ -96,14 +89,25 @@ class PathSafety:
                 requires_approval=True,
             )
 
+        resolved = self.resolve(raw_path)
         if resolved.workspace_relative is None:
             return PathSafetyDecision(allowed=False, reason="path-outside-workspace")
 
         top_level = resolved.workspace_relative.split("/", maxsplit=1)[0].lower()
         if top_level in _BLOCKED_WRITE_PATHS:
             return PathSafetyDecision(allowed=False, reason="protected-path")
-
         return PathSafetyDecision(allowed=True)
+
+    def require_regular_file_read(self, raw_path: str) -> ResolvedPath:
+        resolved = self.resolve(raw_path)
+        self._require_existing_regular_file(resolved)
+        return resolved
+
+    def require_regular_file_write_target(self, raw_path: str) -> ResolvedPath:
+        resolved = self.resolve(raw_path)
+        if resolved.expanded.exists():
+            self._require_existing_regular_file(resolved)
+        return resolved
 
     def _workspace_relative(self, path: Path) -> str | None:
         try:
@@ -119,3 +123,25 @@ class PathSafety:
     @staticmethod
     def _looks_like_network_path(raw_path: str) -> bool:
         return raw_path.startswith("//") or raw_path.startswith("\\\\")
+
+    def _expand_path(self, raw_path: str) -> Path:
+        expanded = Path(raw_path).expanduser()
+        if expanded.is_absolute():
+            return expanded.resolve(strict=False)
+        return (self._workspace_root / expanded).resolve(strict=False)
+
+    @staticmethod
+    def _is_regular_file(path: Path) -> bool:
+        try:
+            mode = path.stat().st_mode
+        except OSError:
+            return False
+        return stat.S_ISREG(mode)
+
+    def _require_existing_regular_file(self, resolved: ResolvedPath) -> None:
+        if not resolved.expanded.exists():
+            msg = f"file not found: {resolved.original}"
+            raise FileNotFoundError(msg)
+        if not self._is_regular_file(resolved.expanded):
+            msg = f"path is not a regular file: {resolved.original}"
+            raise IsADirectoryError(msg)

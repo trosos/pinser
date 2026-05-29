@@ -53,7 +53,7 @@ class WriteTool:
         path = self._require_path(invocation)
         content = self._require_content(invocation)
         safety = PathSafety(self.workspace_root)
-        resolved = safety.resolve(path)
+        resolved = safety.require_regular_file_write_target(path)
         target = resolved.expanded
         original_content = target.read_text() if target.exists() else None
         if original_content is not None and self.file_state is not None:

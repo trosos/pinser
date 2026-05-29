@@ -56,7 +56,7 @@ class EditTool:
         replace_all = self._require_replace_all(invocation)
 
         safety = PathSafety(self.workspace_root)
-        resolved = safety.resolve(path)
+        resolved = safety.require_regular_file_write_target(path)
         target = resolved.expanded
         if target.suffix == ".ipynb":
             msg = "notebook files must be edited with the notebook-specific tool"
