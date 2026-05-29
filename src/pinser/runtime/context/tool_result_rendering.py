@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +11,10 @@ if TYPE_CHECKING:
 
 _MAX_TEXT_CHARS = 4_000
 _MAX_SEQUENCE_ITEMS = 50
+_SECRET_PATTERNS = (
+    re.compile(r"\b(API_KEY|TOKEN|SECRET)=([^\s]+)"),
+    re.compile(r"\bBearer\s+([^\s]+)"),
+)
 
 
 def render_tool_result_for_prompt(tool_name: str, result: ToolExecutionResult) -> str:
@@ -74,8 +79,15 @@ def _render_value(value: Any, *, indent: int) -> str | list[str]:
     return _truncate_text(repr(value))
 
 
+def _redact_secrets(text: str) -> str:
+    redacted = text
+    redacted = _SECRET_PATTERNS[0].sub(lambda match: f"{match.group(1)}=[REDACTED]", redacted)
+    redacted = _SECRET_PATTERNS[1].sub("Bearer [REDACTED]", redacted)
+    return redacted
+
+
 def _render_string_block(value: str, indent: int) -> list[str]:
-    truncated = _truncate_text(value)
+    truncated = _truncate_text(_redact_secrets(value))
     if not truncated:
         return [" " * indent + '""']
     return [(" " * indent) + line for line in truncated.splitlines()]
