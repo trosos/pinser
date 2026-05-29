@@ -30,3 +30,16 @@ def test_glob_tool_requires_non_empty_pattern(tmp_path: Path) -> None:
 
     with pytest.raises(ToolArgumentError, match="non-empty string pattern"):
         tool.build_permission_request(ToolInvocation(tool_name="Glob", arguments={}))
+
+
+@pytest.mark.asyncio
+async def test_glob_tool_reports_all_matches_without_budget_truncation(tmp_path: Path) -> None:
+    for index in range(60):
+        (tmp_path / f"file-{index:02d}.txt").write_text(str(index))
+
+    tool = GlobTool(workspace_root=tmp_path)
+
+    result = await tool.execute(ToolInvocation(tool_name="Glob", arguments={"pattern": "*.txt"}))
+
+    assert len(result.output["matches"]) == 60
+    assert result.summary == "matched 60 path(s)"

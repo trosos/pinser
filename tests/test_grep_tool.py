@@ -48,3 +48,18 @@ async def test_grep_tool_rejects_empty_glob_when_provided(tmp_path: Path) -> Non
         await tool.execute(
             ToolInvocation(tool_name="Grep", arguments={"pattern": "TODO", "glob": ""})
         )
+
+
+@pytest.mark.asyncio
+async def test_grep_tool_reports_all_matches_without_budget_truncation(tmp_path: Path) -> None:
+    for index in range(80):
+        (tmp_path / f"file-{index:02d}.txt").write_text(f"TODO {index}\n")
+
+    tool = GrepTool(workspace_root=tmp_path)
+
+    result = await tool.execute(
+        ToolInvocation(tool_name="Grep", arguments={"pattern": "TODO", "glob": "*.txt"})
+    )
+
+    assert len(result.output["matches"]) == 80
+    assert result.summary == "matched 80 line(s)"
