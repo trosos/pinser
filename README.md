@@ -8,9 +8,19 @@ The project aims to provide a user-controlled, inspectable alternative for termi
 
 ## Status
 
-Pinser is in an early stage.
+Pinser is in an early stage, but it has moved past the initial runtime skeleton.
 
-Phase 1 is now in place: the project has a typed runtime skeleton with session and turn state, prompt assembly, a fake model backend, async event streaming, cancellation handling, and a minimal CLI command that streams one turn's runtime events.
+Current roadmap status:
+
+- Phase 0: complete
+- Phase 1: complete
+- Phase 2: complete
+- Phase 2.1: complete
+- Phase 3: next planned implementation focus
+
+Today the project has a usable local-runtime baseline with core local tools, an initial permission engine, and post-Phase-2 hardening for tool validation, path safety, output budgeting, untrusted tool-output framing, and Bash subprocess safety.
+
+The next major milestone is Phase 3: transcript persistence, resume, and recovery basics.
 
 ## What Pinser is trying to do
 
@@ -27,19 +37,30 @@ Today the repository includes:
 - a Python project bootstrap with `uv`, `pytest`, `ruff`, and `mypy`
 - a Typer-based CLI
 - configuration loading for workspace-local state
-- a minimal runtime kernel with:
+- a typed runtime kernel with:
   - typed `SessionState` and `TurnState`
   - structured prompt assembly
-  - typed runtime events for user, assistant, progress, and lifecycle states
+  - typed runtime events for user, assistant, progress, lifecycle, and tool activity
   - a fake model backend for deterministic tests
   - a headless runtime facade and a one-turn CLI command
+- core local tools and supporting safety/runtime behavior:
+  - `Read`, `Edit`, `FileWrite`, `Glob`, `Grep`, and `Bash`
+  - an initial permission engine and approval-mode handling
+  - workspace/path safety checks and protected-path enforcement
+  - read-before-write and stale-read protections for file mutation
+  - bounded tool outputs and prompt-facing framing of tool output as tool-produced, untrusted content
+  - reduced-environment and timeout-cleanup hardening for Bash
 
 Still intentionally out of scope at this stage:
 
-- real tool execution
 - transcript persistence and resume
 - advanced retry/fallback behavior
+- PowerShell parity work
+- notebook-aware mutation support
+- MCP integration
+- multi-agent delegation/orchestration
 - remote/API-backed operation
+- user-visible background shell task identity and lifecycle
 
 ## API support
 
@@ -105,7 +126,9 @@ Run one minimal runtime turn:
 uv run pinser run-turn hello --workspace .
 ```
 
-Example output:
+The current default CLI backend is a built-in deterministic echo backend rather than a real LLM integration or a tool-planning dummy backend.
+
+So the stock `run-turn` command currently produces an echo-style turn like this:
 
 ```text
 turn-started turn_id=1 user=hello
@@ -115,9 +138,11 @@ assistant: Echo: hello
 turn-completed turn_id=1
 ```
 
+The runtime and tests already support local tool execution and tool events for `Read`, `Edit`, `FileWrite`, `Glob`, `Grep`, and `Bash`, but that tool-capable path is not yet exposed through the default CLI behavior.
+
 ## Contributing / developer docs
 
-If you want implementation details, architecture notes, or rewrite guidance, see [HACKING.md](./HACKING.md).
+If you want implementation details, architecture notes, or rewrite guidance, see [HACKING.md](./HACKING.md) and [docs/project-roadmap.md](./docs/project-roadmap.md).
 
 ## Disclaimer
 

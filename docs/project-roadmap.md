@@ -6,6 +6,20 @@ It is meant to be a practical delivery aid for developers and architects. It com
 
 The roadmap is intentionally phase-based rather than date-based.
 
+## Current status snapshot
+
+The project has completed the early local-runtime foundation and hardening work needed before durability work becomes the main focus.
+
+Current working status:
+
+- Phase 0: complete
+- Phase 1: complete
+- Phase 2: complete
+- Phase 2.1: complete
+- Phase 3: next planned implementation focus
+
+This status snapshot is only a high-level planning aid. The phase sections below remain the main references for scope, deliverables, and completeness criteria.
+
 ## Normative use of this roadmap
 
 Unless there is an explicit documented reason to do otherwise:
@@ -54,7 +68,7 @@ Create a minimal but disciplined Python project foundation that allows implement
 - a minimal CLI entrypoint that starts and exits successfully
 - contributor-facing notes for local setup if needed
 
-Current status: Phase 0 bootstrap has started. The repository now contains a minimal Python package layout, a Typer CLI entrypoint, and initial configuration/test/tooling setup.
+Current status: complete.
 
 ### Completeness criteria
 
@@ -95,6 +109,8 @@ Build the first usable shape of the conversation runtime kernel without yet impl
 - prompt/context assembly interfaces
 - model adapter abstraction with at least one fake/test implementation
 - tests for event ordering and basic turn lifecycle behavior
+
+Current status: complete.
 
 ### Completeness criteria
 
@@ -157,6 +173,8 @@ Make the system useful as a local coding assistant by implementing the core tool
 - path validation and workspace boundary checks
 - tests for safety-sensitive cases and permission decisions
 
+Current status: complete for the initial local-tools and permission-engine milestone. Immediate hardening follow-up was tracked and completed as Phase 2.1.
+
 ### Completeness criteria
 
 Phase 2 is complete when all of the following are true:
@@ -176,6 +194,65 @@ Phase 2 is complete when all of the following are true:
 - multi-agent delegation
 - remote execution
 - user-visible background shell task identity and lifecycle
+
+## Phase 2.1: local-tools hardening checkpoint
+
+See also: [`docs/phase2.1/scope.md`](./phase2.1/scope.md) and [`docs/phase2.1/TODO.md`](./phase2.1/TODO.md).
+
+### Objective
+
+Close the most important safety and correctness gaps in the initial local-tools layer before persistence, resume, and broader robustness work build on top of it.
+
+### Scope
+
+- make validation failures consistently typed
+- strengthen shared path and special-file safety
+- add bounded output handling for current local tools
+- add explicit prompt-facing framing of tool output as tool-produced, untrusted data
+- harden Bash subprocess behavior without attempting full shell-model redesign
+
+### Deliverables
+
+- consistent typed validation failures across current local tools
+- stronger shared path and special-file protections for file and search tools
+- bounded outputs for `Read`, `Glob`, `Grep`, and `Bash`
+- explicit model-visible rendering that labels tool output as tool-produced, untrusted content
+- safer Bash subprocess behavior with reduced environment exposure and better timeout cleanup
+
+Current status: complete.
+
+### Completeness criteria
+
+Phase 2.1 is complete when all of the following are true:
+
+- remaining argument-validation failures in the current local tools surface as `ToolArgumentError` rather than plain `ValueError`
+- permission evaluation and execution operate on validated tool input rather than ad hoc raw parsing paths
+- path handling rejects lexical traversal attempts and resolved out-of-workspace escapes
+- existing non-regular files are rejected clearly for read/write operations
+- representative tests cover symlink escapes, protected paths, and special-file denials where testable
+- `Read`, `Glob`, `Grep`, and `Bash` produce bounded model-visible output with truncation or budget signaling
+- prompt-facing tool output is labeled as tool-produced, untrusted content
+- timed-out Bash executions clean up descendant processes as intended by the implementation
+- Bash does not inherit the full ambient environment by default
+
+### Relationship to later phases
+
+Phase 2.1 deliberately lands only the narrow hardening needed to make the local tools layer a safer base for subsequent phases.
+
+In particular:
+
+- the prompt-facing tool-output framing landed here is a runtime hardening measure, not yet the final persisted transcript model
+- broader transcript/result/prompt-state structural separation still belongs to Phase 3 persistence work and later recovery hardening
+- the output budgeting landed here is the minimum safety-oriented slice needed to bound current local-tool behavior, not the full runtime/transcript-scale result-shaping work described later in the roadmap
+
+### Out of scope
+
+- broad permission-engine redesign
+- richer approval-mode completeness
+- argv-first Bash redesign
+- background shell lifecycle support
+- PowerShell parity work
+- transcript/persistence redesign beyond the narrow prompt-framing hardening landed here
 
 ## Phase 3: transcript persistence, resume, and recovery basics
 
@@ -228,7 +305,7 @@ Upgrade the runtime from a prototype into a credible day-to-day local assistant.
 - implement configurable model selection
 - implement runtime effective model choice and fallback model support
 - implement same-turn retry and failure handling semantics
-- implement result budgeting and tool result shaping
+- implement broader runtime- and transcript-scale result budgeting and tool-result shaping
 - improve cancellation, interruption, and output consistency
 - add `LSP` if available and important for target users
 
@@ -247,6 +324,7 @@ This phase also absorbs specific work intentionally excluded earlier:
 - from Phase 2: PowerShell execution support, if cross-platform parity remains a product goal
 - from Phase 2: richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related approval hardening
 - from Phase 2.1: richer permission-decision metadata, layered whole-tool policy evaluation, argv-first Bash execution for shell-free commands with auto-allow limited to policy-approved program/argument patterns, and stronger policy defaults for network-capable or side-effect-heavy commands
+- from Phase 2.1: broader result-shaping and budgeting work beyond the narrow local-tool safety caps and prompt-facing framing already landed there
 
 ### Completeness criteria
 
@@ -503,7 +581,7 @@ A phase should not be called complete just because code exists. In general, each
 
 If shorter labels are useful in planning, the phases above map roughly to these checkpoints:
 
-- **Checkpoint A:** Phases 0–2 — safe single-agent prototype
+- **Checkpoint A:** Phases 0–2.1 — safe single-agent local runtime baseline
 - **Checkpoint B:** Phases 3–5 — durable daily-driver local assistant
 - **Checkpoint C:** Phases 6–7 — delegated and coordinated workflows
 - **Checkpoint D:** Phases 8–10 — ecosystem breadth, remote operation, and release hardening
@@ -518,4 +596,3 @@ The key discipline is to treat completeness criteria as real gates, especially f
 - file mutation safety
 - transcript durability
 - cancellation and recovery behavior
-- separation between core runtime and optional ecosystem layers

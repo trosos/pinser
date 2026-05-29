@@ -40,6 +40,8 @@ Start with:
 - [`docs/architecture/feature-prioritization.md`](./docs/architecture/feature-prioritization.md)
 - [`docs/project-roadmap.md`](./docs/project-roadmap.md)
 
+For current phase boundaries and implementation sequencing, treat [`docs/project-roadmap.md`](./docs/project-roadmap.md) as the top-level planning document.
+
 ## API strategy
 
 Pinser is expected to use Anthropic APIs.
@@ -103,9 +105,50 @@ If you want to help:
 - clearly label any compatibility work that touches internal behavior
 - do not represent internal Anthropic APIs as stable or officially supported
 
-## Current local workflow
+## Current implementation status
 
-The repository now includes the Phase 1 runtime skeleton on top of the initial Python bootstrap.
+The repository now includes the completed early local-runtime phases needed before persistence work becomes the main focus.
+
+Current roadmap status:
+
+- Phase 0: complete
+- Phase 1: complete
+- Phase 2: complete
+- Phase 2.1: complete
+- Phase 3: next planned implementation focus
+
+Current implementation includes:
+
+- Python packaging, test, lint, and typing workflow
+- a Typer CLI entrypoint
+- a pydantic-based configuration loader
+- a typed runtime kernel with session state, turn state, structured prompt assembly, and typed runtime event streaming
+- a fake model backend and runtime tests for deterministic no-tool turns
+- core local tools:
+  - `Read`, `Edit`, `FileWrite`, `Glob`, `Grep`, and `Bash`
+- an initial permission engine and approval-mode handling
+- workspace/path safety checks and protected-path enforcement
+- file mutation invariants including read-before-write and stale-read checks
+- Phase 2.1 hardening work including:
+  - consistent typed validation failures
+  - stronger shared path and special-file safety
+  - bounded tool outputs
+  - prompt-facing framing of tool output as tool-produced, untrusted content
+  - reduced-environment and timeout-cleanup hardening for Bash
+
+Still intentionally not implemented:
+
+- transcript persistence and resume
+- recovery/repair semantics beyond the in-memory runtime layer
+- advanced retry/fallback behavior
+- PowerShell parity work
+- notebook-aware mutation support
+- MCP integration
+- multi-agent orchestration
+- remote runtime/API-backed operation
+- user-visible background shell task identity and lifecycle
+
+## Current local workflow
 
 Recommended local commands:
 
@@ -116,19 +159,8 @@ Recommended local commands:
 - `uv run pinser main --workspace .`
 - `uv run pinser run-turn hello --workspace .`
 
-Current implementation includes:
+For Python code changes, follow the verification order documented in `CLAUDE.md`:
 
-- `pyproject.toml` with package metadata and tool configuration
-- `src/pinser/` package layout
-- a Typer CLI entrypoint
-- a pydantic-based configuration loader
-- a typed runtime kernel with session state, turn state, and structured prompt assembly
-- typed runtime event streaming for user, progress, assistant, and lifecycle events
-- a fake model backend and runtime tests for deterministic no-tool turns
-
-Still intentionally not implemented:
-
-- real tools and permission engine
-- transcript persistence and resume
-- advanced retry/fallback behavior
-- remote runtime surfaces
+1. `uv run mypy .`
+2. `uv run pytest`
+3. `uv run ruff check .`
