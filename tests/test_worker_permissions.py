@@ -39,6 +39,12 @@ def spawn_worker_registry(
     return worker_registry
 
 
+def terminate_worker_registry(*, active_tasks: set[str]) -> None:
+    if active_tasks:
+        msg = "cannot terminate worker with active background tasks"
+        raise PermissionError(msg)
+
+
 @pytest.mark.asyncio
 async def test_worker_spawn_preserves_parent_permission_mode_and_tool_visibility(
     tmp_path: Path,
@@ -88,3 +94,12 @@ def test_worker_spawn_rejects_broader_tool_visibility_than_parent(tmp_path: Path
                 tool_names=("Bash", "RemoteTrigger"),
             ),
         )
+
+
+def test_worker_termination_rejects_active_background_tasks() -> None:
+    with pytest.raises(PermissionError, match="active background tasks"):
+        terminate_worker_registry(active_tasks={"task-1"})
+
+
+def test_worker_termination_allows_clean_shutdown_without_active_tasks() -> None:
+    terminate_worker_registry(active_tasks=set())
