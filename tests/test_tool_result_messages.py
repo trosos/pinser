@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from support_models import SequenceModel
 
 from pinser.runtime.context.tool_result_rendering import (
@@ -59,6 +60,20 @@ def test_render_tool_result_for_prompt_truncates_large_output() -> None:
     assert rendered.startswith("[tool_result name=Read status=ok]")
 
 
+def test_render_tool_result_for_prompt_truncates_long_sequences() -> None:
+    result = ToolExecutionResult(
+        summary="matched many paths",
+        output={"matches": [f"file-{index}.txt" for index in range(80)]},
+    )
+
+    rendered = render_tool_result_for_prompt("Glob", result)
+
+    assert "... truncated 30 item(s)" in rendered
+    assert "file-49.txt" in rendered
+    assert "file-50.txt" not in rendered
+
+
+@pytest.mark.asyncio
 async def test_session_stores_rendered_tool_result_in_transcript(tmp_path: Path) -> None:
     file_path = tmp_path / "note.txt"
     file_path.write_text("hello from file")
