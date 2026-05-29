@@ -7,6 +7,8 @@ import pytest
 class RemoteModeConfig:
     enable_remote_features: bool = False
     allow_undocumented_remote_api: bool = False
+    enable_mcp_features: bool = False
+    allow_untrusted_mcp_servers: bool = False
 
 
 def validate_remote_trigger_mode(config: RemoteModeConfig) -> None:
@@ -15,6 +17,15 @@ def validate_remote_trigger_mode(config: RemoteModeConfig) -> None:
         raise PermissionError(msg)
     if not config.allow_undocumented_remote_api:
         msg = "remote trigger requires explicit undocumented remote opt-in"
+        raise PermissionError(msg)
+
+
+def validate_mcp_mode(config: RemoteModeConfig) -> None:
+    if not config.enable_mcp_features:
+        msg = "MCP access requires enable_mcp_features=True"
+        raise PermissionError(msg)
+    if not config.allow_untrusted_mcp_servers:
+        msg = "MCP access requires explicit untrusted server opt-in"
         raise PermissionError(msg)
 
 
@@ -35,3 +46,23 @@ def test_remote_trigger_allowed_only_after_explicit_dual_opt_in() -> None:
             allow_undocumented_remote_api=True,
         )
     )
+
+
+def test_mcp_access_is_blocked_by_default_local_mode() -> None:
+    with pytest.raises(PermissionError, match="enable_mcp_features=True"):
+        validate_mcp_mode(RemoteModeConfig())
+
+
+def test_mcp_access_requires_explicit_untrusted_server_opt_in() -> None:
+    with pytest.raises(PermissionError, match="untrusted server opt-in"):
+        validate_mcp_mode(RemoteModeConfig(enable_mcp_features=True))
+
+
+def test_mcp_access_allowed_only_after_explicit_dual_opt_in() -> None:
+    validate_mcp_mode(
+        RemoteModeConfig(
+            enable_mcp_features=True,
+            allow_untrusted_mcp_servers=True,
+        )
+    )
+
