@@ -13,6 +13,7 @@ from pinser.runtime.permissions import (
 )
 from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +89,7 @@ class GrepTool:
         pattern = invocation.arguments.get("pattern")
         if not isinstance(pattern, str) or not pattern:
             msg = "Grep tool requires a non-empty string pattern argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return pattern
 
     @staticmethod
@@ -98,5 +99,5 @@ class GrepTool:
             return None
         if not isinstance(glob, str) or not glob:
             msg = "Grep tool glob argument must be a non-empty string when provided."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return glob

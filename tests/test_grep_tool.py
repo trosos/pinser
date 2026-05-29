@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pinser.runtime.tools import GrepTool
+from pinser.runtime.tools import GrepTool, ToolArgumentError
 from pinser.runtime.tools.protocol import ToolInvocation
 
 
@@ -36,7 +36,7 @@ async def test_grep_tool_returns_workspace_relative_matches_with_line_info(
 def test_grep_tool_requires_non_empty_pattern(tmp_path: Path) -> None:
     tool = GrepTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="non-empty string pattern"):
+    with pytest.raises(ToolArgumentError, match="non-empty string pattern"):
         tool.build_permission_request(ToolInvocation(tool_name="Grep", arguments={}))
 
 
@@ -44,7 +44,7 @@ def test_grep_tool_requires_non_empty_pattern(tmp_path: Path) -> None:
 async def test_grep_tool_rejects_empty_glob_when_provided(tmp_path: Path) -> None:
     tool = GrepTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="glob argument must be a non-empty string"):
+    with pytest.raises(ToolArgumentError, match="glob argument must be a non-empty string"):
         await tool.execute(
             ToolInvocation(tool_name="Grep", arguments={"pattern": "TODO", "glob": ""})
         )

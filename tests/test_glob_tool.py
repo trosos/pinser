@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pinser.runtime.tools import GlobTool
+from pinser.runtime.tools import GlobTool, ToolArgumentError
 from pinser.runtime.tools.protocol import ToolInvocation
 
 
@@ -28,5 +28,5 @@ async def test_glob_tool_returns_workspace_relative_matches(tmp_path: Path) -> N
 def test_glob_tool_requires_non_empty_pattern(tmp_path: Path) -> None:
     tool = GlobTool(workspace_root=tmp_path)
 
-    with pytest.raises(ValueError, match="non-empty string pattern"):
+    with pytest.raises(ToolArgumentError, match="non-empty string pattern"):
         tool.build_permission_request(ToolInvocation(tool_name="Glob", arguments={}))

@@ -13,6 +13,7 @@ from pinser.runtime.permissions import (
 )
 from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,5 +69,5 @@ class ReadTool:
         path = invocation.arguments.get("path")
         if not isinstance(path, str) or not path:
             msg = "Read tool requires a non-empty string path argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return path

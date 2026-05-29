@@ -12,6 +12,7 @@ from pinser.runtime.permissions import (
 )
 from pinser.runtime.safety import PathSafety
 from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools_errors import ToolArgumentError
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,5 +63,5 @@ class GlobTool:
         pattern = invocation.arguments.get("pattern")
         if not isinstance(pattern, str) or not pattern:
             msg = "Glob tool requires a non-empty string pattern argument."
-            raise ValueError(msg)
+            raise ToolArgumentError(msg)
         return pattern
