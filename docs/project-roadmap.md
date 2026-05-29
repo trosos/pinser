@@ -135,6 +135,8 @@ This stopping point is intentionally short of persistence and real tool executio
 
 See also: [`docs/phase2/scope.md`](./phase2/scope.md) for the implementation-scoping note that distinguishes minimum required Phase 2 work from deferred compatibility hardening.
 
+See also: [`docs/phase2.1/scope.md`](./phase2.1/scope.md) for the immediate post-Phase-2 hardening checkpoint covering validation consistency, path and special-file hardening, output budgeting, untrusted tool-output framing, and minimal Bash isolation improvements.
+
 ### Objective
 
 Make the system useful as a local coding assistant by implementing the core tool surface and safety rules.
@@ -188,6 +190,7 @@ Make the runtime durable enough to support session continuation and recovery aft
 - persist user input early enough for resume correctness
 - implement basic session reload/resume behavior
 - implement initial recovery and transcript repair semantics
+- continue the separation between transcript storage, tool-result records, and prompt-normalization inputs so Phase 2.1 untrusted tool-output framing can evolve into replay-safe persistence semantics
 
 ### Deliverables
 
@@ -243,6 +246,7 @@ This phase also absorbs specific work intentionally excluded earlier:
 
 - from Phase 2: PowerShell execution support, if cross-platform parity remains a product goal
 - from Phase 2: richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related approval hardening
+- from Phase 2.1: richer permission-decision metadata, layered whole-tool policy evaluation, argv-first Bash execution redesign, and stronger policy defaults for network-capable or side-effect-heavy commands
 
 ### Completeness criteria
 
@@ -273,6 +277,7 @@ Support long-lived sessions without transcript growth or recovery complexity mak
 - implement recovery flows around compacted sessions
 - improve transcript repair semantics
 - harden replay boundaries and crash consistency
+- strengthen replay/poisoning defenses that depend on compaction, reconstruction, and recovery boundaries
 
 ### Deliverables
 
@@ -471,6 +476,7 @@ This phase also absorbs specific work intentionally excluded earlier:
 - from Phase 2: notebook-safe editing and mutation support, if still justified by real usage
 - from Phase 2: managed-policy, migration-completeness, and enterprise-style permission compatibility work, if still justified
 - from earlier phases generally: compatibility polish intentionally omitted to keep core phases small and safe
+- from Phase 2.1 and later phases: any remaining managed-policy, migration, or enterprise-style permission compatibility gaps that are not needed for the core local runtime
 
 ### Completeness criteria
 
