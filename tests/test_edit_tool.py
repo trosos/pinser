@@ -112,6 +112,28 @@ async def test_edit_tool_can_replace_all_matches(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_edit_tool_rejects_file_changed_after_prior_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("alpha\nbeta\n")
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tracker.record_read("notes.txt", "alpha\nbeta\n")
+    file_path.write_text("alpha\nexternal\n")
+    tool = EditTool(workspace_root=tmp_path, file_state=tracker)
+
+    with pytest.raises(ToolSafetyBlockedError, match="file changed since last read"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Edit",
+                arguments={
+                    "path": "notes.txt",
+                    "old_string": "external",
+                    "new_string": "gamma",
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
 async def test_edit_tool_rejects_notebook_paths(tmp_path: Path) -> None:
     file_path = tmp_path / "notebook.ipynb"
     file_path.write_text('{"cells": []}\n')

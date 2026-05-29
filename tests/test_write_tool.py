@@ -88,6 +88,24 @@ async def test_write_tool_allows_overwrite_after_matching_prior_read(tmp_path: P
     tracker.require_safe_overwrite("notes.txt", "new\nvalue\n")
 
 
+@pytest.mark.asyncio
+async def test_write_tool_rejects_file_changed_after_prior_read(tmp_path: Path) -> None:
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("old\nvalue\n")
+    tracker = FileStateTracker(workspace_root=tmp_path)
+    tracker.record_read("notes.txt", "old\nvalue\n")
+    file_path.write_text("external change\n")
+    tool = WriteTool(workspace_root=tmp_path, file_state=tracker)
+
+    with pytest.raises(ToolSafetyBlockedError, match="file changed since last read"):
+        await tool.execute(
+            ToolInvocation(
+                tool_name="Write",
+                arguments={"path": "notes.txt", "content": "new\nvalue\n"},
+            )
+        )
+
+
 def test_write_tool_requires_non_empty_path(tmp_path: Path) -> None:
     tool = WriteTool(workspace_root=tmp_path)
 
