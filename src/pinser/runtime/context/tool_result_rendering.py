@@ -40,6 +40,9 @@ def format_tool_message_for_prompt(tool_name: str, content: str, is_error: bool)
 
     if content.startswith("[tool_result ") and content.endswith("[/tool_result]"):
         return _truncate_text(content)
+    if content.startswith("[tool_result "):
+        closed = content + "\n[/tool_result]"
+        return _truncate_text(closed)
     status = "error" if is_error else "ok"
     body = _truncate_text(content)
     return f"[tool_result name={tool_name} status={status}]\n{body}\n[/tool_result]"

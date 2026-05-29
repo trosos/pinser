@@ -134,3 +134,11 @@ def test_format_tool_message_for_prompt_is_idempotent_for_rendered_content() -> 
     )
 
     assert format_tool_message_for_prompt("Read", rendered, False) == rendered
+
+
+def test_format_tool_message_for_prompt_closes_truncated_rendered_content() -> None:
+    truncated = "[tool_result name=Read status=ok]\nsummary: read note.txt"
+
+    formatted = format_tool_message_for_prompt("Read", truncated, False)
+
+    assert formatted == truncated + "\n[/tool_result]"

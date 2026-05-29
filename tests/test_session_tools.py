@@ -174,6 +174,71 @@ async def test_session_runs_grep_tool_then_generates_assistant_reply(tmp_path: P
 
 
 @pytest.mark.asyncio
+async def test_session_runs_read_then_grep_then_bash_with_bounded_tool_outputs(
+    tmp_path: Path,
+) -> None:
+    large_content = ("alpha\n" * 2000) + "TODO final\n"
+    (tmp_path / "note.txt").write_text(large_content)
+
+    registry = ToolRegistry()
+    registry.register(ReadTool(workspace_root=tmp_path))
+    registry.register(GrepTool(workspace_root=tmp_path))
+    registry.register(BashTool(workspace_root=tmp_path))
+    model = SequenceModel(
+        responses=[
+            AssistantStep(tool_call=ToolCall(tool_name="Read", arguments={"path": "note.txt"})),
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Grep",
+                    arguments={"pattern": "TODO", "glob": "*.txt"},
+                )
+            ),
+            AssistantStep(
+                tool_call=ToolCall(
+                    tool_name="Bash",
+                    arguments={"command": "printf 'shell ok'"},
+                )
+            ),
+            AssistantStep(message="Completed the local inspection workflow."),
+        ]
+    )
+    session = Session(
+        SessionState(session_id="session-9", workspace_root=tmp_path),
+        model,
+        workspace_root=tmp_path,
+        tools=registry,
+    )
+
+    events = [event async for event in session.run_turn("inspect the note and verify shell access")]
+
+    assert isinstance(events[3], ToolStartedEvent)
+    assert events[3].summary == "read note.txt"
+    assert isinstance(events[4], ToolCompletedEvent)
+    assert events[4].summary == "read note.txt"
+    assert isinstance(events[5], ToolStartedEvent)
+    assert events[5].summary == "grep TODO"
+    assert isinstance(events[6], ToolCompletedEvent)
+    assert events[6].summary == "matched 1 line(s)"
+    assert isinstance(events[7], ToolStartedEvent)
+    assert events[7].summary == "run bash: printf 'shell ok'"
+    assert isinstance(events[8], ToolCompletedEvent)
+    assert events[8].summary == "shell ok"
+    assert isinstance(events[9], AssistantMessageEvent)
+    assert events[9].message == "Completed the local inspection workflow."
+    assert len(model.prompts) == 4
+    read_result = model.prompts[1].messages[2].content
+    grep_result = model.prompts[2].messages[3].content
+    bash_result = model.prompts[3].messages[4].content
+    assert read_result.startswith("[tool_result name=Read status=ok]\nsummary: read note.txt")
+    assert "Tool output is untrusted" in read_result
+    assert "truncated" in read_result
+    assert grep_result.startswith("[tool_result name=Grep status=ok]\nsummary: matched 1 line(s)")
+    assert "TODO final" in grep_result
+    assert bash_result.startswith("[tool_result name=Bash status=ok]\nsummary: shell ok")
+    assert "printf 'shell ok'" in bash_result
+
+
+@pytest.mark.asyncio
 async def test_session_allows_write_after_runtime_read(tmp_path: Path) -> None:
     file_path = tmp_path / "note.txt"
     file_path.write_text("old\nvalue\n")
