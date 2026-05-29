@@ -2,6 +2,12 @@ from dataclasses import dataclass
 
 import pytest
 
+# Placeholder threat-regression tests only: these helpers are intentionally local to
+# this test module and do not exercise product code yet. Replace this file with
+# implementation-backed tests once remote trigger / MCP feature gates exist in the
+# runtime or configuration layer so reviewers are not misled into thinking the area
+# is already covered by real enforcement tests.
+
 
 @dataclass(frozen=True, slots=True)
 class RemoteModeConfig:

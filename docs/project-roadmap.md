@@ -246,7 +246,7 @@ This phase also absorbs specific work intentionally excluded earlier:
 
 - from Phase 2: PowerShell execution support, if cross-platform parity remains a product goal
 - from Phase 2: richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related approval hardening
-- from Phase 2.1: richer permission-decision metadata, layered whole-tool policy evaluation, argv-first Bash execution redesign, and stronger policy defaults for network-capable or side-effect-heavy commands
+- from Phase 2.1: richer permission-decision metadata, layered whole-tool policy evaluation, argv-first Bash execution for shell-free commands with auto-allow limited to policy-approved program/argument patterns, and stronger policy defaults for network-capable or side-effect-heavy commands
 
 ### Completeness criteria
 
