@@ -192,6 +192,7 @@ async def test_bash_tool_kills_process_group_on_timeout(tmp_path: Path) -> None:
     command = (
         f"{sys.executable} -c \"import subprocess, sys, time; "
         f"subprocess.Popen([sys.executable, r'{child_script}', r'{marker}']); "
+        "time.sleep(0.3); "
         "time.sleep(5)\""
     )
 

@@ -490,59 +490,79 @@ Finish with:
 - review of any intentionally deferred work against roadmap landing zones
 - documentation updates if user-visible behavior or limits changed materially
 
+## Status snapshot
+
+Overall status: implementation complete for the intended Phase 2.1 scope; remaining work is close-out verification and documentation hygiene.
+
+Completed against the scope note:
+
+- [x] consistent typed validation failures across current local tools
+- [x] stronger shared path and special-file safety for current file/search tools
+- [x] bounded tool outputs for `Read`, `Glob`, `Grep`, and `Bash`
+- [x] explicit prompt-facing framing of tool output as untrusted data
+- [x] safer Bash subprocess behavior with reduced environment exposure and better timeout cleanup
+
+Known deferred-by-design items still out of scope for Phase 2.1:
+
+- broader permission-engine redesign
+- argv-first Bash redesign
+- background shell lifecycle support
+- PowerShell parity work
+- transcript/persistence redesign beyond the narrow prompt-framing hardening landed here
+
 ## Detailed work checklist
 
 ### A. Validation and tool contract consistency
 
-- [ ] Identify every remaining plain `ValueError` used for tool argument failures
-- [ ] Replace those with `ToolArgumentError`
-- [ ] Confirm session/runtime handling preserves typed failure surfaces
-- [ ] Add an explicit validation step before permission evaluation/execution
-- [ ] Ensure validation does not perform unsafe filesystem probing
-- [ ] Add tests for invalid `Read` arguments
-- [ ] Add tests for invalid `Glob` arguments
-- [ ] Add tests for invalid `Grep` arguments
-- [ ] Add tests for invalid `Bash` arguments if needed
-- [ ] Add session-level tests for typed validation failures
+- [x] Identify every remaining plain `ValueError` used for tool argument failures
+- [x] Replace those with `ToolArgumentError`
+- [x] Confirm session/runtime handling preserves typed failure surfaces
+- [x] Add an explicit validation step before permission evaluation/execution
+- [x] Ensure validation does not perform unsafe filesystem probing
+- [x] Add tests for invalid `Read` arguments
+- [x] Add tests for invalid `Glob` arguments
+- [x] Add tests for invalid `Grep` arguments
+- [x] Add tests for invalid `Bash` arguments if needed
+- [x] Add session-level tests for typed validation failures
 
 ### B. Shared path-safety hardening
 
-- [ ] Identify current path-safety helpers and embedded per-tool checks
-- [ ] Add shared lexical-path safety checks
-- [ ] Add/shared resolved-path containment checks
-- [ ] Centralize protected-path policy definition
-- [ ] Ensure protected-path checks remain case-insensitive where required by architecture
-- [ ] Block existing non-regular files for reads
-- [ ] Block existing non-regular files for writes
-- [ ] Preserve UNC/network-path fail-closed behavior before unsafe probing
-- [ ] Add tests for traversal variants
-- [ ] Add tests for network-style path variants
-- [ ] Add tests for symlink-inside-workspace -> outside-workspace escapes
-- [ ] Add tests for protected-path denials
-- [ ] Add tests for FIFO/socket/device denials where testable
+- [x] Identify current path-safety helpers and embedded per-tool checks
+- [x] Add shared lexical-path safety checks
+- [x] Add/shared resolved-path containment checks
+- [x] Centralize protected-path policy definition
+- [x] Ensure protected-path checks remain case-insensitive where required by architecture
+- [x] Block existing non-regular files for reads
+- [x] Block existing non-regular files for writes
+- [x] Preserve UNC/network-path fail-closed behavior before unsafe probing
+- [x] Add tests for traversal variants
+- [x] Add tests for network-style path variants
+- [x] Add tests for symlink-inside-workspace -> outside-workspace escapes
+- [x] Add tests for protected-path denials
+- [x] Add tests for FIFO/socket/device denials where testable
 
 ### C. Output budgeting and result shaping
 
-- [ ] Decide concrete budgets for `Read`, `Glob`, `Grep`, and `Bash`
-- [ ] Implement `Read` size/output cap
-- [ ] Implement `Glob` traversal/result cap
-- [ ] Implement `Grep` traversal/result/output cap
+- [x] Decide concrete budgets for `Read`, `Glob`, `Grep`, and `Bash`
+- [x] Implement `Read` size/output cap
+- [x] Implement `Glob` traversal/result cap
+- [x] Implement `Grep` traversal/result/output cap
 - [x] Implement `Bash` stdout/stderr cap
-- [ ] Include truncation/budget metadata in tool results
-- [ ] Add tests for oversized `Read`
-- [ ] Add tests for oversized `Glob` result sets
-- [ ] Add tests for oversized `Grep` result sets
+- [x] Include truncation/budget metadata in tool results
+- [x] Add tests for oversized `Read`
+- [x] Add tests for oversized `Glob` result sets
+- [x] Add tests for oversized `Grep` result sets
 - [x] Add tests for oversized Bash stdout/stderr
 
 ### D. Prompt-facing untrusted tool-output framing
 
-- [ ] Find current model-facing tool-result render path(s)
-- [ ] Replace implicit raw prompt-facing rendering with explicit renderer
-- [ ] Label model-facing tool output as tool-produced, untrusted content
-- [ ] Ensure bounded output is used in rendered prompt-facing content
-- [ ] Preserve coherent `tool_use`/`tool_result` pairing behavior
-- [ ] Add tests that prompt-facing tool output is labeled
-- [ ] Add tests that prompt-facing tool output is bounded
+- [x] Find current model-facing tool-result render path(s)
+- [x] Replace implicit raw prompt-facing rendering with explicit renderer
+- [x] Label model-facing tool output as tool-produced, untrusted content
+- [x] Ensure bounded output is used in rendered prompt-facing content
+- [x] Preserve coherent `tool_use`/`tool_result` pairing behavior
+- [x] Add tests that prompt-facing tool output is labeled
+- [x] Add tests that prompt-facing tool output is bounded
 
 ### E. Bash hardening
 
@@ -556,11 +576,11 @@ Finish with:
 
 ### F. Verification and close-out
 
-- [ ] Run targeted tests during each step
-- [ ] Run full verification after implementation
-- [ ] Review behavior against `docs/phase2.1/scope.md` completeness criteria
-- [ ] Check that no deferred Phase 3/4 work was accidentally pulled into scope
-- [ ] Update docs if new limits/messages are user-visible
+- [x] Run targeted tests during each step
+- [x] Run full verification after implementation
+- [x] Review behavior against `docs/phase2.1/scope.md` completeness criteria
+- [x] Check that no deferred Phase 3/4 work was accidentally pulled into scope
+- [x] Update docs if new limits/messages are user-visible
 
 ## Threat-focused test additions
 
