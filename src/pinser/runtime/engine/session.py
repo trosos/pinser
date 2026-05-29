@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pinser.runtime.context.prompt import PromptContext, build_prompt_context
+from pinser.runtime.context.tool_result_rendering import render_tool_result_for_prompt
 from pinser.runtime.conversation.messages import (
     AssistantMessage,
     ConversationItem,
@@ -33,7 +34,7 @@ from pinser.runtime.events.models import (
 from pinser.runtime.model.messages import AssistantStep
 from pinser.runtime.model.protocol import ModelBackend
 from pinser.runtime.permissions import PermissionDecisionKind
-from pinser.runtime.tools.protocol import ToolExecutionResult, ToolInvocation
+from pinser.runtime.tools.protocol import ToolInvocation
 from pinser.runtime.tools.registry import ToolRegistry
 from pinser.runtime.tools_errors import ToolExecutionError, ToolSafetyBlockedError
 
@@ -271,7 +272,7 @@ class Session:
                 summary=result.summary,
             )
         )
-        rendered_result = self._render_tool_result_message(result)
+        rendered_result = render_tool_result_for_prompt(invocation.tool_name, result)
         tool_result = ToolResultMessage(
             tool_name=invocation.tool_name,
             content=rendered_result,
@@ -279,12 +280,6 @@ class Session:
         self._state.transcript.append(tool_result)
         next_step = await self._generate_step(turn_state)
         return next_step, events, []
-
-    def _render_tool_result_message(self, result: ToolExecutionResult) -> str:
-        content = result.output.get("content")
-        if isinstance(content, str):
-            return content
-        return result.summary
 
     def _permission_denied_response(
         self,

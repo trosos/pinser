@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+from pinser.runtime.context.tool_result_rendering import format_tool_message_for_prompt
 from pinser.runtime.conversation.messages import (
     AssistantMessage,
     ConversationItem,
@@ -60,7 +61,14 @@ def _prompt_message_for_item(item: ConversationItem) -> PromptMessage:
     if isinstance(item, AssistantMessage):
         return PromptMessage(role=PromptRole.ASSISTANT, content=item.content)
     if isinstance(item, ToolResultMessage):
-        return PromptMessage(role=PromptRole.TOOL, content=item.content)
+        return PromptMessage(
+            role=PromptRole.TOOL,
+            content=format_tool_message_for_prompt(
+                item.tool_name,
+                item.content,
+                item.is_error,
+            ),
+        )
     msg = f"Unsupported conversation item: {type(item)!r}"
     raise TypeError(msg)
 

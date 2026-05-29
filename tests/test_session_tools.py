@@ -57,7 +57,10 @@ async def test_session_runs_read_tool_then_generates_assistant_reply(tmp_path: P
         PromptRole.USER,
     ]
     assert model.prompts[1].messages[1].content == "read the note"
-    assert model.prompts[1].messages[2].content == "hello from file"
+    assert model.prompts[1].messages[2].content.startswith(
+        "[tool_result name=Read status=ok]\nsummary: read note.txt"
+    )
+    assert "hello from file" in model.prompts[1].messages[2].content
     assert model.prompts[1].messages[3].content == "read the note"
 
 
@@ -164,7 +167,10 @@ async def test_session_runs_grep_tool_then_generates_assistant_reply(tmp_path: P
         PromptRole.TOOL,
         PromptRole.USER,
     ]
-    assert model.prompts[1].messages[2].content == "matched 2 line(s)"
+    assert model.prompts[1].messages[2].content.startswith(
+        "[tool_result name=Grep status=ok]\nsummary: matched 2 line(s)"
+    )
+    assert "TODO one" in model.prompts[1].messages[2].content
 
 
 @pytest.mark.asyncio
@@ -284,8 +290,15 @@ async def test_session_runs_edit_tool_then_generates_assistant_reply(tmp_path: P
         PromptRole.TOOL,
         PromptRole.USER,
     ]
-    assert model.prompts[2].messages[2].content == "alpha\nbeta\n"
-    assert model.prompts[2].messages[3].content == "alpha\ngamma\n"
+    assert model.prompts[2].messages[2].content.startswith(
+        "[tool_result name=Read status=ok]\nsummary: read note.txt"
+    )
+    assert "alpha" in model.prompts[2].messages[2].content
+    assert "beta" in model.prompts[2].messages[2].content
+    assert model.prompts[2].messages[3].content.startswith(
+        "[tool_result name=Edit status=ok]\nsummary: edited note.txt"
+    )
+    assert "gamma" in model.prompts[2].messages[3].content
     assert model.prompts[2].messages[4].content == "replace beta with gamma"
 
 
@@ -385,7 +398,10 @@ async def test_session_runs_bash_tool_then_generates_assistant_reply(tmp_path: P
     assert events[4].summary == "workspace ok"
     assert isinstance(events[5], AssistantMessageEvent)
     assert events[5].message == "The shell command succeeded."
-    assert model.prompts[1].messages[2].content == "workspace ok"
+    assert model.prompts[1].messages[2].content.startswith(
+        "[tool_result name=Bash status=ok]\nsummary: workspace ok"
+    )
+    assert "printf 'workspace ok'" in model.prompts[1].messages[2].content
 
 
 @pytest.mark.asyncio
