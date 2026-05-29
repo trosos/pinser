@@ -2,6 +2,8 @@
 
 This document records lightweight CLI output expectations for the first Phase 2 tool and safety flows.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 It complements:
 
 - [`scope.md`](./scope.md)

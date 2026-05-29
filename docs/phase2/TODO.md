@@ -2,6 +2,8 @@
 
 Created while reviewing the repository on 2026-05-24.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 ## What exists today
 
 - Phase 1 runtime skeleton is in place:

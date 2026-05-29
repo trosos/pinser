@@ -1,6 +1,8 @@
 # Phase 2 omitted functionality register
 
 This note records important functionality intentionally omitted from the first Phase 2 implementation.
+
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
 It exists to keep Phase 2 conservative, reduce scope drift, and make later planning easier.
 For deeper behavior and long-term intent, see the architecture documents and roadmap referenced below.
 

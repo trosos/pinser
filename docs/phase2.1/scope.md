@@ -2,6 +2,8 @@
 
 This document defines the immediate follow-up hardening work that should land after the initial Phase 2 implementation and before the project treats the local tools layer as a stable base for later roadmap phases.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 It complements, and does not replace:
 
 - [`docs/project-roadmap.md`](../project-roadmap.md)

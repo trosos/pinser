@@ -2,6 +2,8 @@
 
 This file records the implementation plan for Phase 2.1 based on the current scope note, architecture documentation, threat model, and tools security assessment.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 Primary references reviewed:
 
 - `docs/phase2.1/scope.md`

@@ -2,6 +2,8 @@
 
 This document narrows Phase 2 into an implementation-ready local scope for Pinser.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 It complements, and does not replace:
 
 - [`docs/project-roadmap.md`](../project-roadmap.md)

@@ -2,6 +2,8 @@
 
 This document records the intended Phase 2 runtime integration shape for tools in Pinser.
 
+For canonical project phase status, see [`docs/project-roadmap.md`](../project-roadmap.md).
+
 It is a local implementation note for contributors. It does not replace the architecture references.
 
 Normative companion documents:
