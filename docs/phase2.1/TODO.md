@@ -527,12 +527,12 @@ Finish with:
 - [ ] Implement `Read` size/output cap
 - [ ] Implement `Glob` traversal/result cap
 - [ ] Implement `Grep` traversal/result/output cap
-- [ ] Implement `Bash` stdout/stderr cap
+- [x] Implement `Bash` stdout/stderr cap
 - [ ] Include truncation/budget metadata in tool results
 - [ ] Add tests for oversized `Read`
 - [ ] Add tests for oversized `Glob` result sets
 - [ ] Add tests for oversized `Grep` result sets
-- [ ] Add tests for oversized Bash stdout/stderr
+- [x] Add tests for oversized Bash stdout/stderr
 
 ### D. Prompt-facing untrusted tool-output framing
 
@@ -546,13 +546,13 @@ Finish with:
 
 ### E. Bash hardening
 
-- [ ] Audit current subprocess launch environment
-- [ ] Define minimal inherited environment policy
-- [ ] Launch Bash in a process group/session suitable for descendant cleanup
-- [ ] Kill the full process group on timeout
-- [ ] Confirm output caps interact correctly with timeout/error paths
-- [ ] Add regression tests for descendant cleanup on timeout
-- [ ] Add regression tests for reduced environment inheritance
+- [x] Audit current subprocess launch environment
+- [x] Define minimal inherited environment policy
+- [x] Launch Bash in a process group/session suitable for descendant cleanup
+- [x] Kill the full process group on timeout
+- [x] Confirm output caps interact correctly with timeout/error paths
+- [x] Add regression tests for descendant cleanup on timeout
+- [x] Add regression tests for reduced environment inheritance
 
 ### F. Verification and close-out
 
