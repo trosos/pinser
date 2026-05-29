@@ -99,11 +99,19 @@ class PathSafety:
         return PathSafetyDecision(allowed=True)
 
     def require_regular_file_read(self, raw_path: str) -> ResolvedPath:
+        decision = self.check_read_path(raw_path)
+        if not decision.allowed:
+            msg = f"file not found: {raw_path}"
+            raise FileNotFoundError(msg)
         resolved = self.resolve(raw_path)
         self._require_existing_regular_file(resolved)
         return resolved
 
     def require_regular_file_write_target(self, raw_path: str) -> ResolvedPath:
+        decision = self.check_write_path(raw_path)
+        if not decision.allowed:
+            msg = f"file not found: {raw_path}"
+            raise FileNotFoundError(msg)
         resolved = self.resolve(raw_path)
         if resolved.expanded.exists():
             self._require_existing_regular_file(resolved)
