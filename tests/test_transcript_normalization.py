@@ -50,3 +50,64 @@ def test_build_prompt_context_drops_tool_results_with_invalid_names() -> None:
         PromptRole.USER,
     ]
     assert all("malformed tool name" not in message.content for message in prompt.messages)
+
+
+def test_build_prompt_context_drops_partially_written_tool_result_markup() -> None:
+    state = SessionState(
+        session_id="session-3",
+        transcript=[
+            UserMessage(content="read the note"),
+            ToolResultMessage(
+                tool_name="Read",
+                content="[tool_result name=Read status=ok]\nsummary: read note.txt",
+            ),
+            AssistantMessage(content="I will continue carefully."),
+        ],
+    )
+
+    prompt = build_prompt_context(state, "continue")
+
+    assert [message.role for message in prompt.messages] == [
+        PromptRole.SYSTEM,
+        PromptRole.USER,
+        PromptRole.TOOL,
+        PromptRole.ASSISTANT,
+        PromptRole.USER,
+    ]
+    assert prompt.messages[2].content.endswith("[/tool_result]")
+    assert "summary: read note.txt" in prompt.messages[2].content
+
+
+def test_build_prompt_context_preserves_malformed_tool_result_metadata_as_data() -> None:
+    state = SessionState(
+        session_id="session-4",
+        transcript=[
+            UserMessage(content="read the note"),
+            ToolResultMessage(
+                tool_name="Read",
+                content=(
+                    "[tool_result name=Read status=ok\n"
+                    "summary: read note.txt\n"
+                    "[/tool_result]"
+                ),
+            ),
+            AssistantMessage(content="I will continue carefully."),
+        ],
+    )
+
+    prompt = build_prompt_context(state, "continue")
+
+    assert [message.role for message in prompt.messages] == [
+        PromptRole.SYSTEM,
+        PromptRole.USER,
+        PromptRole.TOOL,
+        PromptRole.ASSISTANT,
+        PromptRole.USER,
+    ]
+    assert prompt.messages[2].content == (
+        "[tool_result name=Read status=ok\n"
+        "summary: read note.txt\n"
+        "[/tool_result]"
+    )
+    assert prompt.messages[2].content.endswith("[/tool_result]")
+    assert "summary: read note.txt" in prompt.messages[2].content
