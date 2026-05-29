@@ -73,12 +73,35 @@ def _prompt_message_for_item(item: ConversationItem) -> PromptMessage:
     raise TypeError(msg)
 
 
+def _is_safe_tool_name(tool_name: str) -> bool:
+    return tool_name.isidentifier()
+
+
+def _normalized_transcript_items(
+    transcript: list[ConversationItem],
+) -> list[ConversationItem]:
+    normalized: list[ConversationItem] = []
+    saw_user_or_assistant = False
+    for item in transcript:
+        if isinstance(item, UserMessage | AssistantMessage):
+            normalized.append(item)
+            saw_user_or_assistant = True
+            continue
+        if isinstance(item, ToolResultMessage):
+            if not saw_user_or_assistant:
+                continue
+            if not _is_safe_tool_name(item.tool_name):
+                continue
+            normalized.append(item)
+    return normalized
+
+
 def build_prompt_context(session_state: SessionView, user_message: str) -> PromptContext:
     """Build the minimal structured prompt context for a turn."""
 
     messages: list[PromptMessage] = [PromptMessage(role=PromptRole.SYSTEM, content=SYSTEM_PROMPT)]
 
-    for transcript_entry in session_state.transcript:
+    for transcript_entry in _normalized_transcript_items(session_state.transcript):
         messages.append(_prompt_message_for_item(transcript_entry))
 
     messages.append(PromptMessage(role=PromptRole.USER, content=user_message))

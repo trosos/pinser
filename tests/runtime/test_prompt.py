@@ -27,13 +27,16 @@ def test_build_prompt_context_wraps_tool_messages_with_explicit_untrusted_framin
     session_state = SessionState(
         session_id="session-1",
         turn_count=1,
-        transcript=[ToolResultMessage(tool_name="Read", content="file content")],
+        transcript=[
+            UserMessage(content="hello"),
+            ToolResultMessage(tool_name="Read", content="file content"),
+        ],
     )
 
     prompt_context = build_prompt_context(session_state, "what next?")
 
-    assert prompt_context.messages[1].role is PromptRole.TOOL
-    assert prompt_context.messages[1].content == (
+    assert prompt_context.messages[2].role is PromptRole.TOOL
+    assert prompt_context.messages[2].content == (
         "[tool_result name=Read status=ok]\n"
         "file content\n"
         "[/tool_result]"
@@ -45,17 +48,18 @@ def test_build_prompt_context_marks_error_tool_messages() -> None:
         session_id="session-1",
         turn_count=1,
         transcript=[
+            UserMessage(content="hello"),
             ToolResultMessage(
                 tool_name="Write",
                 content="permission denied",
                 is_error=True,
-            )
+            ),
         ],
     )
 
     prompt_context = build_prompt_context(session_state, "what next?")
 
-    assert prompt_context.messages[1].content == (
+    assert prompt_context.messages[2].content == (
         "[tool_result name=Write status=error]\n"
         "permission denied\n"
         "[/tool_result]"
