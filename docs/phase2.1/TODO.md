@@ -129,6 +129,280 @@ Deliverable:
 
 - a concrete file-level change map before editing behavior
 
+### 1a. File-by-file implementation map
+
+This audit maps the current implementation touchpoints to the planned Phase 2.1 work.
+
+#### Core runtime flow
+
+- `src/pinser/runtime/engine/session.py`
+  - Current role:
+    - orchestrates tool invocation lifecycle
+    - builds permission requests
+    - evaluates permission decisions
+    - executes tools
+    - emits tool started/completed/denied/blocked/failed events
+    - appends `ToolResultMessage` into transcript
+    - currently renders prompt-facing tool output through `_render_tool_result_message()`
+  - Why it matters for Phase 2.1:
+    - this is the main place to add an explicit validation-before-permission step if done at runtime level
+    - this is the main place to stop relying on raw `output["content"]`
+    - this is where prompt-facing result closure behavior must remain coherent
+  - Likely changes:
+    - introduce validated invocation handling or explicit validation call before `build_permission_request()` / `decide_permission()` / `execute()`
+    - replace `_render_tool_result_message()` with an explicit, bounded, tool-result rendering path
+    - keep denied/blocked/failed transcript insertion behavior stable while improving labeling
+  - Main risks:
+    - duplicating transcript entries accidentally
+    - changing current event ordering
+    - mixing runtime metadata with model-visible text
+
+- `src/pinser/runtime/context/prompt.py`
+  - Current role:
+    - maps transcript items into prompt messages
+    - currently passes `ToolResultMessage.content` directly as tool-role prompt content
+  - Why it matters for Phase 2.1:
+    - prompt-facing untrusted tool-output framing lands here or very near here
+  - Likely changes:
+    - add explicit labeling/framing for `ToolResultMessage`
+    - ensure tool outputs are visibly untrusted and bounded
+  - Main risks:
+    - changing existing tests that assert raw tool content
+    - introducing formatting that obscures useful tool output too much
+
+- `src/pinser/runtime/conversation/messages.py`
+  - Current role:
+    - defines transcript item types, including `ToolResultMessage(tool_name, content, is_error)`
+  - Why it matters for Phase 2.1:
+    - if prompt-facing rendering needs more structured stored metadata, this is the smallest place to extend transcript shape
+  - Likely changes:
+    - possibly add minimal metadata needed for labeled/bounded rendering
+    - or leave shape unchanged if rendering can be derived from current fields plus runtime changes
+  - Main risks:
+    - making Phase 2.1 over-architected
+    - broad test fallout if message shape changes unnecessarily
+
+#### Tool contract and errors
+
+- `src/pinser/runtime/tools/protocol.py`
+  - Current role:
+    - defines `ToolInvocation`, `ToolExecutionResult`, and minimal `Tool` protocol
+  - Why it matters for Phase 2.1:
+    - current contract has no explicit validation hook or model-visible renderer
+  - Likely changes:
+    - add a narrow validation method and/or explicit prompt-render method to the tool contract if needed
+    - keep scope tight and avoid full typed-input redesign in this phase
+  - Main risks:
+    - forcing a larger architecture shift than Phase 2.1 requires
+
+- `src/pinser/runtime/tools_errors.py`
+  - Current role:
+    - defines `ToolExecutionError`, `ToolSafetyBlockedError`, and `ToolArgumentError`
+  - Why it matters for Phase 2.1:
+    - target error type for validation cleanup already exists here
+  - Likely changes:
+    - probably no or minimal code changes
+    - may gain more precise docstrings or stay unchanged
+
+#### Permissions and events
+
+- `src/pinser/runtime/permissions/models.py`
+  - Current role:
+    - defines `PermissionDecisionKind`, `PermissionDecision`, and `PermissionRequest`
+  - Why it matters for Phase 2.1:
+    - if we add machine-readable reason fields later, this is the location
+    - Phase 2.1 may or may not actually need schema changes here depending on implementation choices
+  - Likely changes:
+    - maybe none for the first implementation pass
+    - possibly small metadata additions if needed for clearer reason handling
+  - Main risks:
+    - widening scope into broader permission-engine redesign
+
+- `src/pinser/runtime/events/models.py`
+  - Current role:
+    - defines tool lifecycle events and current event payloads
+  - Why it matters for Phase 2.1:
+    - event coverage must remain stable if validation and rendering paths change
+  - Likely changes:
+    - probably none in the first pass
+    - maybe small additions only if required by implementation
+  - Main risks:
+    - unnecessary event-schema churn
+
+#### Shared filesystem safety and mutation tracking
+
+- `src/pinser/runtime/safety.py`
+  - Current role:
+    - defines `PathSafety`, `PathSafetyDecision`, and `ResolvedPath`
+    - currently handles workspace containment, network-like path detection, blocked read devices, and top-level protected write paths
+  - Why it matters for Phase 2.1:
+    - this is the primary landing zone for shared path hardening
+  - Likely changes:
+    - add lexical path checks before filesystem interaction
+    - centralize protected-path policy more cleanly
+    - add non-regular-file detection helpers
+    - possibly add reusable helpers for read/write/search-specific checks
+  - Main risks:
+    - probing filesystem state too early for suspicious inputs
+    - breaking legitimate relative path handling
+    - platform-specific assumptions around special files
+
+- `src/pinser/runtime/engine/file_state.py`
+  - Current role:
+    - tracks read/write observations and enforces read-before-write / stale-read safety
+  - Why it matters for Phase 2.1:
+    - path-hardening changes may need corresponding normalization updates here
+    - stale-read/write critical section behavior should remain intact during write-path changes
+  - Likely changes:
+    - possibly route normalization through improved shared path helpers
+    - maybe add or adjust tests rather than major code changes
+  - Main risks:
+    - changing path normalization keys in a way that breaks overwrite protection
+
+#### File and search tools
+
+- `src/pinser/runtime/tools/read.py`
+  - Current role:
+    - validates path with a plain `ValueError`
+    - checks read permission through `PathSafety`
+    - reads full file content with no output budget
+    - records reads in `FileStateTracker`
+  - Why it matters for Phase 2.1:
+    - direct target for typed validation cleanup, file-size/output caps, and special-file enforcement
+  - Likely changes:
+    - replace `ValueError` with `ToolArgumentError`
+    - use hardened path policy helpers
+    - add regular-file checks and size/output cap behavior
+    - return truncation metadata and safer rendered content path
+  - Main risks:
+    - breaking current read-before-write behavior
+    - changing exact content expectations in prompt-related tests
+
+- `src/pinser/runtime/tools/write.py`
+  - Current role:
+    - already uses `ToolArgumentError`
+    - relies on `PathSafety.check_write_path()` and direct `PathSafety.resolve()`
+    - writes exact full content and emits diff metadata
+  - Why it matters for Phase 2.1:
+    - needs shared path hardening and non-regular-file protection
+  - Likely changes:
+    - adopt improved path-policy helpers
+    - reject non-regular existing targets
+    - preserve current read-before-write and stale-read semantics
+  - Main risks:
+    - accidentally weakening overwrite safety while refactoring path checks
+
+- `src/pinser/runtime/tools/edit.py`
+  - Current role:
+    - already uses `ToolArgumentError`
+    - relies on write-path safety and file-state checks
+    - edits exact text and emits diff metadata
+  - Why it matters for Phase 2.1:
+    - needs the same hardened shared path and special-file behavior as `Write`
+  - Likely changes:
+    - adopt improved shared path-policy helpers
+    - reject non-regular targets clearly
+    - preserve notebook guard and overwrite invariants
+  - Main risks:
+    - regressions in exact-match edit semantics
+
+- `src/pinser/runtime/tools/glob.py`
+  - Current role:
+    - validates pattern with a plain `ValueError`
+    - traverses with `workspace_root.glob(pattern)`
+    - filters candidates back through `PathSafety.resolve()`
+    - has no traversal or result budget
+  - Why it matters for Phase 2.1:
+    - direct target for typed validation cleanup and output budgeting
+    - likely needs tighter shared path normalization use
+  - Likely changes:
+    - replace `ValueError` with `ToolArgumentError`
+    - add traversal/result caps and truncation metadata
+    - possibly add safer pattern validation constraints if needed
+  - Main risks:
+    - over-constraining useful glob patterns
+    - performance changes from additional filtering
+
+- `src/pinser/runtime/tools/grep.py`
+  - Current role:
+    - validates inputs with plain `ValueError`
+    - compiles arbitrary regex with `re.compile()`
+    - walks files via `glob`/`rglob`
+    - reads full files line-by-line with no file-size or output budget
+  - Why it matters for Phase 2.1:
+    - direct target for typed validation cleanup, search budgeting, and shared file-safety rules
+  - Likely changes:
+    - replace `ValueError` with `ToolArgumentError`
+    - add traversal/file/result/output caps
+    - skip or block oversized/non-regular inputs consistently through shared safety helpers
+    - return truncation metadata
+  - Main risks:
+    - broad test changes due to summary/count behavior
+    - regex cost remains partially open unless explicitly constrained
+
+#### Bash tool
+
+- `src/pinser/runtime/tools/bash.py`
+  - Current role:
+    - validates arguments with `ToolArgumentError`
+    - analyzes commands heuristically for allow/ask/deny
+    - executes via `/bin/bash -lc <command>`
+    - inherits ambient environment
+    - uses `process.kill()` on timeout
+    - returns full stdout/stderr with no size caps
+  - Why it matters for Phase 2.1:
+    - this is the Bash hardening landing zone
+  - Likely changes:
+    - add explicit environment minimization
+    - launch in its own process group/session for full descendant cleanup
+    - kill full process group on timeout
+    - add stdout/stderr caps and truncation metadata
+    - keep current shell model otherwise narrowly scoped
+  - Main risks:
+    - environment scrubbing breaking tests or expected shell startup behavior
+    - timeout cleanup becoming flaky in tests
+    - accidental behavioral drift in permission analysis while editing execution path
+
+#### Tool wiring
+
+- `src/pinser/runtime/tools/__init__.py`
+- `src/pinser/runtime/tools/registry.py`
+  - Current role:
+    - expose and register tools
+  - Why they matter for Phase 2.1:
+    - only if contract changes require registry or export updates
+  - Likely changes:
+    - none or very small supporting edits
+
+#### Primary tests to update or extend
+
+- `tests/test_safety.py`
+  - Main landing zone for lexical traversal, network-path, protected-path, symlink escape, and special-file coverage
+
+- `tests/test_tool_result_messages.py`
+  - Main landing zone for prompt-facing tool-result framing expectations
+
+- `tests/test_session_tools.py`
+  - Main landing zone for runtime-level validation/failure behavior and model-visible tool-result expectations
+
+- `tests/test_bash_tool.py`
+  - Main landing zone for Bash output caps, timeout cleanup, and environment minimization
+
+- `tests/test_glob_tool.py`
+- `tests/test_grep_tool.py`
+- `tests/test_write_tool.py`
+- `tests/test_edit_tool.py`
+- `tests/test_file_state.py`
+  - Supporting landing zones for per-tool behavior and overwrite-safety invariants
+
+### 1b. Suggested implementation sequence based on actual code layout
+
+1. Start in `src/pinser/runtime/tools/read.py`, `glob.py`, and `grep.py` for typed validation cleanup.
+2. Then harden `src/pinser/runtime/safety.py` and adapt `read.py`, `write.py`, `edit.py`, `glob.py`, and `grep.py` to use the shared policy consistently.
+3. Then update `src/pinser/runtime/engine/session.py` and `src/pinser/runtime/context/prompt.py` for explicit bounded tool-result rendering and untrusted framing.
+4. Then harden `src/pinser/runtime/tools/bash.py`.
+5. Keep `tests/test_session_tools.py`, `tests/test_tool_result_messages.py`, `tests/test_safety.py`, and `tests/test_bash_tool.py` in lockstep with each step.
+
 ### 2. Validation and typed-failure cleanup
 
 Implement:
