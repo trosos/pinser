@@ -271,9 +271,29 @@ Make the runtime durable enough to support session continuation and recovery aft
 - implement transcript persistence model
 - separate prompt history from transcript persistence
 - persist user input early enough for resume correctness
+- persist completed assistant and tool-result conversation records through a narrow initial transcript shape
 - implement basic session reload/resume behavior
 - implement initial recovery and transcript repair semantics
 - continue the separation between transcript storage, tool-result records, and prompt-normalization inputs so Phase 2.1 untrusted tool-output framing can evolve into replay-safe persistence semantics
+
+### Phase-boundary clarifications
+
+Phase 3 should establish the first durable session baseline without prematurely landing the full persistence and recovery architecture described elsewhere.
+
+For this phase, the intended narrow baseline is:
+
+- append-only per-session transcript persistence with lazy session-file materialization
+- a dedicated loader/recovery path rather than raw JSON deserialization into runtime state
+- explicit distinction between durable conversation records and ephemeral progress/runtime-only events
+- a prompt-history store or mechanism that is separate from transcript durability
+- basic interruption recovery based primarily on loader-side sanitization and repair of incomplete persisted tails
+- a minimal persisted tool-result model sufficient for replay-safe resume correctness
+
+Unless implementation experience forces otherwise, Phase 3 should prefer the smallest structurally correct design choices that keep later phases open:
+
+- persist durable conversation records in the transcript first rather than introducing full large-result offloading, aggregate replacement-state accounting, or compaction-aware transcript metadata now
+- treat loader-side invalid-tail filtering/sanitization as sufficient for the initial repair baseline, while deferring broader tombstoning and transcript surgery to later phases
+- keep transcript entry shapes extensible enough for later metadata, repair markers, compaction boundaries, and richer tool-result persistence
 
 ### Deliverables
 
@@ -331,6 +351,7 @@ This phase also absorbs specific work intentionally excluded earlier:
 - from Phase 2: richer permission-mode completeness such as `acceptEdits`, `plan`, `auto`, and related approval hardening
 - from Phase 2.1: richer permission-decision metadata, layered whole-tool policy evaluation, argv-first Bash execution for shell-free commands with auto-allow limited to policy-approved program/argument patterns, and stronger policy defaults for network-capable or side-effect-heavy commands
 - from Phase 2.1: broader result-shaping and budgeting work beyond the narrow local-tool safety caps and prompt-facing framing already landed there
+- from Phase 3: large-result offloading, aggregate replacement-state accounting, and richer persisted-output indirection beyond the narrow initial tool-result persistence baseline
 
 ### Completeness criteria
 

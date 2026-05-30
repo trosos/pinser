@@ -123,6 +123,7 @@ Implement at minimum:
 - persistent per-session transcript storage
 - session identity and storage location handling
 - early persistence of committed user input sufficient for resume correctness
+- persistence of completed assistant conversation records and completed tool-result records through a deliberately narrow initial transcript shape
 - transcript loading for an existing session
 - a basic resume path that reconstructs a usable conversation from persisted records
 - a prompt-history store kept separate from transcript persistence
@@ -135,6 +136,7 @@ The minimum implementation should preserve these behavior classes:
 - no silent loss of committed user input across interruption and resume
 - resume from persisted session state without treating the transcript as a raw in-memory object dump
 - explicit distinction between durable transcript state and ephemeral progress/runtime-only events
+- prompt history as a separate convenience/history surface that does not define resume correctness
 - clear handling of interrupted or partial turn artifacts through a defined recovery path
 
 ### Required recovery behavior
@@ -207,6 +209,28 @@ Instead, use them to avoid dead ends:
 - leave room for later metadata and boundary records
 - design recovery as a loader pipeline
 
+### 6. Choose the narrow initial repair strategy explicitly
+
+For Phase 3, a loader-side repair baseline is sufficient unless implementation experience shows it is inadequate.
+
+That means contributors should prefer:
+
+- append-oriented persistence that preserves the original durable record
+- recovery-time filtering or sanitization of obviously incomplete assistant/tool tails
+- a minimal invalid-tail handling strategy that does not require broad transcript rewriting or generalized tombstoning yet
+
+Broader transcript surgery, append-time invalidation markers, or large-file tombstoning mechanisms are intentionally deferred unless they become necessary to satisfy the Phase 3 completeness criteria.
+
+### 7. Keep the first tool-result persistence model intentionally small
+
+Phase 3 should persist the minimum tool-result information needed for replay-safe resume, not the full later-phase result persistence architecture.
+
+Unless implementation constraints force otherwise, contributors should prefer:
+
+- persisting completed tool-result conversation records in the transcript through the same narrow durable entry model used for other conversation records
+- deferring large-result offloading, aggregate replacement-state accounting, and richer per-tool persisted-output indirection to later phases
+- keeping transcript entry shapes extensible so richer tool-result persistence can be added later without redesigning Phase 3 from scratch
+
 ## Explicitly in scope now
 
 The following work should be considered active Phase 3 scope.
@@ -225,6 +249,7 @@ Implement:
 Implement:
 
 - a prompt-history mechanism or store that is separate from transcript persistence
+- prompt history as a convenience/history surface rather than the source of truth for resume or recovery
 - tests proving transcript persistence and prompt-history behavior are not the same concern
 
 ### 3. Resume loading and basic recovery
