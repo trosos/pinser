@@ -256,26 +256,26 @@ Add or update local phase documentation as implementation clarifies:
 
 Phase 3 should stay focused on basic durability and recovery. The following work is important but should not be required to call this phase complete.
 
-### Deferred primarily to Phase 4
+These landing zones are restatements of later roadmap phases, included here only so contributors can avoid accidentally pulling later-phase work into Phase 3.
 
-- configurable model routing and fallback behavior
-- broader retry-state machinery and daily-driver failure handling
-- broader runtime- and transcript-scale result-budgeting beyond the minimum persistence-safe structure needed here
-- PowerShell and approval-mode breadth deferred from earlier phases
+### Deferred per the roadmap to Phase 4
 
-### Deferred primarily to Phase 5
+- model routing, fallback behavior, and retry/failure hardening owned by Phase 4
+- broader runtime- and transcript-scale result budgeting and shaping owned by Phase 4
+- PowerShell and broader approval/permission-mode completeness already deferred to Phase 4 from earlier phases
 
-- full compaction/checkpointing implementation
-- compaction-aware long-session maintenance workflows
-- deeper replay/poisoning and reconstruction hardening tied to compaction boundaries
-- richer recovery optimization for very large transcripts
+### Deferred per the roadmap to Phase 5
 
-### Deferred primarily to Phase 6 and later
+- compaction/checkpointing implementation owned by Phase 5
+- long-session maintenance and recovery hardening owned by Phase 5
+- deeper replay/poisoning and reconstruction hardening tied to compaction/recovery boundaries owned by Phase 5
 
-- background task durability and lifecycle
-- worker/agent sidechain persistence beyond whatever minimal structure is needed not to block future work
-- team/shared-task coordination persistence
-- remote/bridge-backed session hydration
+### Deferred per the roadmap to Phase 6 and later
+
+- background task lifecycle and durability work owned by Phase 6
+- worker/delegation coordination work owned by Phase 7
+- MCP integration work owned by Phase 8
+- remote session/API-backed persistence and hydration work owned by Phase 9
 
 ## Ordered execution plan
 
